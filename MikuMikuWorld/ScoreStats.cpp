@@ -1,6 +1,7 @@
 #include "ScoreStats.h"
 #include "Score.h"
 #include "Constants.h"
+#include <algorithm>
 
 namespace MikuMikuWorld
 {
@@ -17,7 +18,8 @@ namespace MikuMikuWorld
 
 	void ScoreStats::resetCounts()
 	{
-		taps = flicks = holds = steps = total = 0;
+		taps = flicks = holds = steps = traces = total = 0;
+		skills = cheers = feverChances = 0;
 	}
 
 	void ScoreStats::resetCombo()
@@ -27,55 +29,60 @@ namespace MikuMikuWorld
 
 	void ScoreStats::calculateStats(const Score& score)
 	{
-		resetCounts();
-		for (const auto& [id, note] : score.notes)
+		taps = std::count_if(score.notes.begin(), score.notes.end(), [](const auto& n)
 		{
-			switch (note.getType())
-			{
-			case NoteType::Tap:
-				note.isFlick() ? ++flicks : ++taps;
-				break;
+			const Note& note = n.second;
+			return note.getType() == NoteType::Tap && !note.isFlick() && !note.friction;
+		});
 
-			case NoteType::Hold:
-				++holds;
+		holds = std::count_if(score.notes.begin(), score.notes.end(),
+			[](const auto& n) { return n.second.getType() == NoteType::Hold; });
 
-				break;
+		steps = std::count_if(score.notes.begin(), score.notes.end(),
+			[](const auto& n) { return n.second.getType() == NoteType::HoldMid; });
 
-			case NoteType::HoldMid:
-				++steps;
-				break;
+		flicks = std::count_if(score.notes.begin(), score.notes.end(),
+			[](const auto& n) { return n.second.isFlick(); });
 
-			default:
-				break;
-			}
-		}
+		traces = std::count_if(score.notes.begin(), score.notes.end(),
+			[](const auto& n) { return n.second.friction; });
 
-		total = taps + flicks + holds + steps;
+		total = score.notes.size();
+
+		skills = score.skills.size();
+		cheers = score.cheers.size();
+		feverChances = (score.fever.startTick >= 0 && score.fever.endTick >= 0) ? 1 : 0;
+
 		calculateCombo(score);
 	}
 
 	void ScoreStats::calculateCombo(const Score& score)
 	{
 		resetCombo();
-		for (const auto& [id, note] : score.notes)
+		combo = score.notes.size();
+
+		constexpr int halfBeat = TICKS_PER_BEAT / 2;
+		for (const auto& [id, hold] : score.holdNotes)
 		{
-			if (note.getType() == NoteType::HoldMid)
+			if (hold.isGuide())
 			{
-				const HoldNote& hold = score.holdNotes.at(note.parentID);
-				int pos = findHoldStep(hold, note.ID);
-				if (pos != -1)
-					if (hold.steps[pos].type == HoldStepType::Invisible)
-						continue;
+				// Guide holds are not included
+				combo -= 2 + hold.steps.size();
+				continue;
 			}
 
-			++combo;
-		}
+			// Hidden hold starts and ends do not count towards combo
+			if (hold.startType != HoldNoteType::Normal)
+				combo--;
+			
+			if (hold.endType != HoldNoteType::Normal)
+				combo--;
 
-		int halfBeat = TICKS_PER_BEAT / 2;
-		for (const auto& hold : score.holdNotes)
-		{
-			int startTick = score.notes.at(hold.first).tick;
-			int endTick = score.notes.at(hold.second.end).tick;
+			combo -= std::count_if(hold.steps.begin(), hold.steps.end(),
+				[](const HoldStep& step) { return step.type == HoldStepType::Hidden; });
+
+			int startTick = score.notes.at(id).tick;
+			int endTick = score.notes.at(hold.end).tick;
 			int eigthTick = startTick;
 
 			eigthTick += halfBeat;

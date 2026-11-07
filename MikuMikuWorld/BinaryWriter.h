@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string>
 
-namespace MikuMikuWorld
+namespace IO
 {
 	class BinaryWriter
 	{
@@ -11,6 +11,7 @@ namespace MikuMikuWorld
 
 	public:
 		BinaryWriter(const std::string& filename);
+		~BinaryWriter();
 
 		bool isStreamValid();
 		void close();
@@ -20,6 +21,7 @@ namespace MikuMikuWorld
 		size_t getStreamPosition();
 
 		void seek(size_t pos);
+		void writeInt16(uint16_t data);
 		void writeInt32(uint32_t data);
 		void writeSingle(float data);
 		void writeString(std::string data);

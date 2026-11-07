@@ -1,53 +1,87 @@
 #pragma once
-#include "AudioEvent.h"
-#include <string>
-#include <unordered_map>
+#include "Sound.h"
+#include <map>
 #include <vector>
-#include <queue>
+#include <array>
 #include <memory>
 
-namespace MikuMikuWorld
+namespace Audio
 {
-
 	class AudioManager
 	{
 	private:
 		ma_engine engine;
-		ma_sound_group_config bgmGroupConfig;
-		ma_sound_group bgmGroup;
-		ma_sound_group seGroup;
-		ma_sound_config bgmConfig;
-		ma_sound bgm;
-		std::unordered_map<std::string, ma_sound> seMap;
-		std::vector<std::unique_ptr<AudioEvent>> audioEvents;
+		ma_sound music;
+		ma_sound_group musicGroup;
+		ma_sound_group soundEffectsGroup;
+		std::array<SoundEffectProfile, soundEffectsProfileCount> sounds;
 
-		float bgmOffset = 0.0f;
-		bool musicInitialized = false;
+		// Offset from chart time in seconds
+		float musicOffset{ 0.0f };
+
+		float masterVolume{ 1.0f };
+		float musicVolume{ 1.0f };
+		float soundEffectsVolume{ 1.0f };
+
+		float playbackSpeed{ 1.0f };
+		size_t soundEffectsProfileIndex{ 0 };
+
+		float lastPlaybackTime{};
 
 	public:
-		void initAudio();
-		void loadSE();
-		bool changeBGM(const std::string& filename);
+		SoundBuffer musicBuffer;
+		std::vector<SoundInstance> debugSounds;
+
+		void initializeAudioEngine();
+		void uninitializeAudioEngine();
+		void syncAudioEngineTimer();
+		void startEngine();
+		void stopEngine();
+		bool isEngineStarted() const;
+
+		uint32_t getDeviceSampleRate() const;
+		uint32_t getDeviceChannelCount() const;
+		float getDeviceLatency() const;
+		float getAudioEngineAbsoluteTime() const;
+
+		void loadSoundEffects();
+		MikuMikuWorld::Result loadMusic(const std::string& filename);
+
 		void setMasterVolume(float volume);
-		void setBGMVolume(float volume);
-		void setSEVolume(float volume);
-		void playBGM(float currTime);
-		void pauseBGM();
-		void stopBGM();
-		void seekBGM(float time);
-		void disposeBGM();
-		void uninitAudio();
-		void playSE(const char* se, float time);
-		void setBGMOffset(float time, float sec);
-		void reSync();
-		void pushAudioEvent(const char* se, double start, double end, bool loop);
-		void clearEvents();
-		void stopAllEvents();
-		float getAudioPosition();
-		float getBGMOffset();
-		float getEngineAbsTime();
-		float getSongEndTime();
-		bool isMusicInitialized();
-		bool isMusicAtEnd();
+		float getMasterVolume() const;
+
+		void setMusicVolume(float volume);
+		float getMusicVolume() const;
+
+		void setSoundEffectsVolume(float volume);
+		float getSoundEffectsVolume() const;
+
+		void setPlaybackSpeed(float speed, float currentTime);
+		float getPlaybackSpeed() const;
+
+		void playMusic(float currentTime);
+		void stopMusic();
+		void seekMusic(float time);
+		void setMusicOffset(float currentTime, float offset);
+		float getMusicPosition();
+		float getMusicLength();
+		float getMusicOffset() const;
+		float getMusicEndTime() const;
+		bool isMusicInitialized() const;
+		bool isMusicAtEnd() const;
+		void disposeMusic();
+
+		void playOneShotSound(std::string_view name);
+		void playSoundEffect(std::string_view name, float start, float end, float currentTime);
+		void stopSoundEffects(bool all);
+		bool isSoundPlaying(std::string_view name) const;
+
+		size_t getSoundEffectsProfileIndex() const;
+		void setSoundEffectsProfileIndex(size_t index);
+
+		float getLastPlaybackTime() const;
+		void setLastPlaybackTime(float time);
+
+		using SoundPoolPair = std::pair<std::string_view, std::unique_ptr<SoundPool>>;
 	};
 }

@@ -1,13 +1,18 @@
 #include "BinaryReader.h"
-#include "StringOperations.h"
+#include "IO.h"
 
-namespace MikuMikuWorld
+namespace IO
 {
 	BinaryReader::BinaryReader(const std::string& filename)
 	{
 		stream = NULL;
 		std::wstring wFilename = mbToWideStr(filename);
 		stream = _wfopen(wFilename.c_str(), L"rb");
+	}
+
+	BinaryReader::~BinaryReader()
+	{
+		close();
 	}
 
 	bool BinaryReader::isStreamValid()
@@ -19,6 +24,8 @@ namespace MikuMikuWorld
 	{
 		if (stream)
 			fclose(stream);
+
+		stream = NULL;
 	}
 
 	size_t BinaryReader::getFileSize()
@@ -37,12 +44,19 @@ namespace MikuMikuWorld
 		return ftell(stream);
 	}
 
+	uint16_t IO::BinaryReader::readInt16()
+	{
+		uint16_t data = 0;
+		if (stream)
+			fread(&data, sizeof(uint16_t), 1, stream);
+		return data;
+	}
+
 	uint32_t BinaryReader::readInt32()
 	{
 		uint32_t data = 0;
 		if (stream)
 			fread(&data, sizeof(uint32_t), 1, stream);
-
 		return data;
 	}
 
@@ -51,7 +65,6 @@ namespace MikuMikuWorld
 		float data = 0;
 		if (stream)
 			fread(&data, sizeof(float), 1, stream);
-
 		return data;
 	}
 
@@ -70,5 +83,11 @@ namespace MikuMikuWorld
 
 		}
 		return data;
+	}
+
+	void BinaryReader::seek(size_t pos)
+	{
+		if (stream)
+			fseek(stream, pos, SEEK_SET);
 	}
 }

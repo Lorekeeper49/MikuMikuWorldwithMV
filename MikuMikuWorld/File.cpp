@@ -1,123 +1,168 @@
 #include "File.h"
-#include "StringOperations.h"
+#include "IO.h"
+#include <Windows.h>
+#include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
 #include <filesystem>
+#include <sstream>
 
-namespace MikuMikuWorld
+namespace IO
 {
-	File::File(const std::wstring& filename, const wchar_t* mode)
+	FileDialogFilter mmwsFilter{ "MikuMikuWorld Score", "*.mmws" };
+	FileDialogFilter susFilter{ "Sliding Universal Score", "*.sus" };
+	FileDialogFilter lvlDatFilter{ "Sonolus Level Data", "*.json.gz;*.json" };
+	FileDialogFilter imageFilter{ "Image Files", "*.jpg;*.jpeg;*.png" };
+	FileDialogFilter audioFilter{ "Audio Files", "*.mp3;*.wav;*.flac;*.ogg" };
+	FileDialogFilter subtitleFilter{ "Subtitle Files", "*.srt;*.vtt;*.ass;*.ssa" };
+	FileDialogFilter videoFilter{ "Video Files", "*.mp4;*.m4v;*.mkv;*.webm;*.mov;*.avi;*.wmv;*.asf;*.flv;*.mpg;*.mpeg;*.vob;*.ts;*.m2ts;*.mts;*.ogv;*.3gp" };
+	FileDialogFilter presetFilter{ "Notes Preset", "*.json" };
+	FileDialogFilter allFilter{ "All Files", "*.*" };
+
+	File::File(const std::string& filename, FileMode mode)
 	{
-		stream = NULL;
+		stream = std::make_unique<std::fstream>();
 		open(filename, mode);
 	}
 
-	File::File(const std::string& filename, const char* mode)
+	File::File(const std::wstring& filename, FileMode mode)
 	{
-		stream = NULL;
+		stream = std::make_unique<std::fstream>();
 		open(filename, mode);
 	}
 
-	File::File()
+	File::~File()
 	{
-		stream = NULL;
+		if (stream->is_open())
+			stream->close();
 	}
 
-	void File::open(const std::wstring& filename, const wchar_t* mode)
+	int File::getStreamMode(FileMode mode) const
 	{
-		if (stream)
-			close();
-
-		stream = _wfopen(filename.c_str(), mode);
+		switch (mode)
+		{
+		case FileMode::Read:
+			return std::fstream::in;
+		case FileMode::Write:
+			return std::fstream::out;
+		case FileMode::ReadBinary:
+			return std::fstream::in | std::fstream::binary;
+		case FileMode::WriteBinary:
+			return std::fstream::out | std::fstream::binary;
+		default:
+			return 0;
+		}
 	}
 
-	void File::open(const std::string& filename, const char* mode)
+	void File::open(const std::string& filename, FileMode mode)
 	{
-		if (stream)
-			close();
+		openFilename = filename;
+		open(IO::mbToWideStr(filename), mode);
+	}
 
-		stream = fopen(filename.c_str(), mode);
+	void File::open(const std::wstring& filename, FileMode mode)
+	{
+		openFilenameW = filename;
+		stream->open(filename, getStreamMode(mode));
 	}
 
 	void File::close()
 	{
-		fclose(stream);
-		stream = NULL;
+		openFilename.clear();
+		openFilenameW.clear();
+		stream->close();
 	}
 
 	void File::flush()
 	{
-		if (stream)
-			fflush(stream);
+		stream->flush();
 	}
 
-	std::string File::readLine() const
+	std::vector<uint8_t> File::readAllBytes()
 	{
-		std::string line = "";
-		while (!feof(stream))
-		{
-			char c;
-			fread(&c, sizeof(uint8_t), 1, stream);
-			if (feof(stream))
-				break;
+		if (!stream->is_open())
+			return {};
 
-			if (c != '\n')
-				line += c;
-			else
-				break;
-		}
+		stream->seekg(0, std::ios_base::end);
+		size_t length = stream->tellg();
+		stream->seekg(0, std::ios_base::beg);
 
+		std::vector<uint8_t> bytes;
+		bytes.resize(length);
+		stream->read((char*)bytes.data(), length);
+
+		return bytes;
+	}
+
+	std::string File::readLine()
+	{
+		if (!stream->is_open())
+			return {};
+
+		std::string line{};
+		std::getline(*stream, line);
 		return line;
 	}
 
-	std::vector<std::string> File::readAllLines() const
+	std::vector<std::string> File::readAllLines()
 	{
+		if (!stream->is_open())
+			return {};
+
 		std::vector<std::string> lines;
-		while (!isEndofFile())
+		while (!stream->eof())
 			lines.push_back(readLine());
 
 		return lines;
 	}
 
-	std::string File::readAllText() const
+	std::string File::readAllText()
 	{
-		fseek(stream, 0, SEEK_END);
-		int size = ftell(stream);
-		fseek(stream, 0, SEEK_SET);
+		if (!stream->is_open())
+			return {};
 
-		char* buf = new char[size];
-		fread(buf, sizeof(char), size, stream);
-
-		std::string result(buf);
-
-		delete[] buf;
-
-		return result;
+		std::stringstream buffer;
+		buffer << stream->rdbuf();
+		return buffer.str();
 	}
 
-	bool File::isEndofFile() const
+	bool File::isEndofFile()
 	{
-		if (stream)
-			return feof(stream);
-
-		return true;
+		return stream->is_open() ? stream->eof() : true;
 	}
 
-	void File::write(const std::string str)
+	void File::write(const std::string& str)
 	{
-		fwrite(str.c_str(), str.size(), 1, stream);
+		if (stream->is_open())
+		{
+			stream->write(str.c_str(), str.length());
+		}
 	}
 
 	void File::writeLine(const std::string line)
 	{
-		write(line);
-		fwrite("\n", 1, 1, stream);
+		write(line + "\n");
 	}
 
 	void File::writeAllLines(const std::vector<std::string>& lines)
 	{
-		for (const auto& line : lines)
-			writeLine(line);
+		if (stream->is_open())
+		{
+			std::stringstream ss{};
+			for (const auto& line : lines)
+				ss << line + '\n';
+
+			std::string allLines{ ss.str() };
+			stream->write(allLines.c_str(), allLines.size());
+		}
+	}
+
+	void File::writeAllBytes(const std::vector<uint8_t>& bytes)
+	{
+		if (stream->is_open())
+		{
+			stream->write((char*)bytes.data(), bytes.size());
+		}
 	}
 
 	std::string File::getFilename(const std::string& filename)
@@ -128,7 +173,11 @@ namespace MikuMikuWorld
 
 	std::string File::getFileExtension(const std::string& filename)
 	{
-		return std::filesystem::path(filename).extension().string();
+		size_t end = filename.find_last_of(".");
+		if (end == std::string::npos)
+			return "";
+
+		return filename.substr(end);
 	}
 
 	std::string File::getFilenameWithoutExtension(const std::string& filename)
@@ -137,6 +186,18 @@ namespace MikuMikuWorld
 		size_t end = str.find_last_of(".");
 
 		return str.substr(0, end);
+	}
+
+	std::string File::getFullFilenameWithoutExtension(const std::string& filename)
+	{
+		size_t end = filename.find_last_of(".");
+		return filename.substr(0, end);
+	}
+
+	std::wstring File::getFullFilenameWithoutExtension(const std::wstring& filename)
+	{
+		size_t end = filename.find_last_of(L".");
+		return filename.substr(0, end);
 	}
 
 	std::string File::getFilepath(const std::string& filename)
@@ -168,5 +229,97 @@ namespace MikuMikuWorld
 	{
 		std::wstring wPath = mbToWideStr(path);
 		return std::filesystem::exists(wPath);
+	}
+
+	bool File::hasFileExtension(const std::string_view& filename, const std::string_view& extension)
+	{
+		return endsWith(filename, extension);
+	}
+
+	FileDialogResult FileDialog::showFileDialog(DialogType type, DialogSelectType selectType)
+	{
+		std::wstring wTitle = mbToWideStr(title);
+
+		OPENFILENAMEW ofn;
+		memset(&ofn, 0, sizeof(ofn));
+		ofn.lStructSize = sizeof(ofn);
+		ofn.hwndOwner = reinterpret_cast<HWND>(parentWindowHandle);
+		ofn.lpstrTitle = wTitle.c_str();
+		ofn.nFilterIndex = filterIndex + 1;
+		ofn.nFileOffset = 0;
+		ofn.nMaxFile = MAX_PATH;
+		ofn.Flags = OFN_LONGNAMES | OFN_EXPLORER | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+
+		std::wstring wDefaultExtension = mbToWideStr(defaultExtension);
+		ofn.lpstrDefExt = wDefaultExtension.c_str();
+
+		std::vector<std::wstring> ofnFilters;
+		ofnFilters.reserve(filters.size());
+
+		/*
+			since '\0' terminates the string,
+			we'll do a C# by using ' | ' then replacing it with '\0' when constructing the final wide string
+		*/
+		std::string filtersCombined;
+		for (const auto& filter : filters)
+		{
+			filtersCombined
+				.append(filter.filterName)
+				.append(" (")
+				.append(filter.filterType)
+				.append(")|")
+				.append(filter.filterType)
+				.append("|");
+		}
+
+		std::wstring wFiltersCombined = mbToWideStr(filtersCombined);
+		std::replace(wFiltersCombined.begin(), wFiltersCombined.end(), '|', '\0');
+		ofn.lpstrFilter = wFiltersCombined.c_str();
+
+		std::wstring wInputFilename = mbToWideStr(inputFilename);
+		wchar_t ofnFilename[1024]{ 0 };
+
+		// suppress return value not used warning
+#pragma warning(suppress: 6031)
+		lstrcpynW(ofnFilename, wInputFilename.c_str(), 1024);
+		ofn.lpstrFile = ofnFilename;
+
+		if (type == DialogType::Save)
+		{
+			ofn.Flags |= OFN_HIDEREADONLY;
+			if (GetSaveFileNameW(&ofn))
+			{
+				outputFilename = wideStringToMb(ofn.lpstrFile);
+			}
+			else
+			{
+				// user canceled
+				return FileDialogResult::Cancel;
+			}
+		}
+		else if (GetOpenFileNameW(&ofn))
+		{
+			outputFilename = wideStringToMb(ofn.lpstrFile);
+		}
+		else
+		{
+			return FileDialogResult::Cancel;
+		}
+
+		if (outputFilename.empty())
+			return FileDialogResult::Cancel;
+
+		filterIndex = ofn.nFilterIndex - 1;
+		return FileDialogResult::OK;
+	}
+
+	FileDialogResult FileDialog::openFile()
+	{
+		return showFileDialog(DialogType::Open, DialogSelectType::File);
+	}
+
+	FileDialogResult FileDialog::saveFile()
+	{
+		return showFileDialog(DialogType::Save, DialogSelectType::File);
 	}
 }

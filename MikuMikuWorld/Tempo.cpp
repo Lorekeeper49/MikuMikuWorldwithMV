@@ -1,4 +1,7 @@
 #include "Tempo.h"
+#include "Score.h"
+#include "Constants.h"
+#include <algorithm>
 
 namespace MikuMikuWorld
 {
@@ -50,6 +53,32 @@ namespace MikuMikuWorld
 		return total;
 	}
 
+	double accumulateScaledDuration(int tick, int ticksPerBeat, const std::vector<Tempo>& bpms, const std::vector<HiSpeedChange>& hispeeds)
+	{
+		int prvBpm = 0, prvSpd = -1;
+		int accTicks = 0;
+		double totalDuration = 0;
+
+		while (accTicks < tick)
+		{
+			int nxtBpmTick = prvBpm + 1 < bpms.size() ? bpms[prvBpm + 1].tick : INT32_MAX;
+			int nxtSpdTick = prvSpd + 1 < hispeeds.size() ? hispeeds[prvSpd + 1].tick : INT32_MAX;
+			int nxtTick = std::min({nxtBpmTick, nxtSpdTick, tick});
+
+			float currentBpm = bpms.at(prvBpm).bpm;
+			float currentSpd = prvSpd >= 0 ? hispeeds[prvSpd].speed : 1.0f;
+
+			totalDuration += ticksToSec(nxtTick - accTicks, ticksPerBeat, currentBpm) * currentSpd;
+
+			if (nxtTick == nxtBpmTick)
+				prvBpm++;
+			if (nxtTick == nxtSpdTick)
+				prvSpd++;
+			accTicks = nxtTick;
+		}
+		return totalDuration;
+	}
+
 	int accumulateTicks(float sec, int beatTicks, const std::vector<Tempo>& bpms)
 	{
 		int total = 0;
@@ -77,20 +106,15 @@ namespace MikuMikuWorld
 
 	int accumulateMeasures(int tick, int beatTicks, const std::map<int, TimeSignature>& ts)
 	{
-		std::vector<TimeSignature> signatures;
-		signatures.reserve(ts.size());
-		for (const auto& it : ts)
-			signatures.push_back(it.second);
-
 		int accTicks = 0;
 		int total = 0;
-		int lastSign = 0;
+		auto lastSignature = ts.begin();
 
-		for (int t = 0; t < signatures.size() - 1; ++t)
+		for (auto t = ts.begin(); t != std::prev(ts.end()); t = std::next(t))
 		{
-			lastSign = t;
-			int ticksPerMeasure = beatsPerMeasure(signatures[t]) * beatTicks;
-			int measures = signatures[t + 1].measure - signatures[t].measure;
+			lastSignature = t;
+			int ticksPerMeasure = beatsPerMeasure(t->second) * beatTicks;
+			int measures = std::next(t)->first - t->first;
 			int ticks = measures * ticksPerMeasure;
 
 			if (accTicks + ticks >= tick)
@@ -98,29 +122,24 @@ namespace MikuMikuWorld
 
 			total += measures;
 			accTicks += ticks;
-			lastSign = t + 1;
+			lastSignature = std::next(t);
 		}
 
-		total += (tick - accTicks) / (beatsPerMeasure(signatures[lastSign]) * beatTicks);
+		total += (tick - accTicks) / (beatsPerMeasure(lastSignature->second) * beatTicks);
 		return total;
 	}
 
 	int measureToTicks(int measure, int beatTicks, const std::map<int, TimeSignature>& ts)
 	{
-		std::vector<TimeSignature> signatures;
-		signatures.reserve(ts.size());
-		for (const auto& it : ts)
-			signatures.push_back(it.second);
-
 		int accMeasures = 0;
 		int total = 0;
-		int lastSign = 0;
+		auto lastSignature = ts.begin();
 
-		for (int t = 0; t < signatures.size() - 1; ++t)
+		for (auto t = ts.begin(); t != std::prev(ts.end()); t = std::next(t))
 		{
-			lastSign = t;
-			int ticksPerMeasure = beatsPerMeasure(signatures[t]) * beatTicks;
-			int measures = signatures[t + 1].measure - signatures[t].measure;
+			lastSignature = t;
+			int ticksPerMeasure = beatsPerMeasure(t->second) * beatTicks;
+			int measures = std::next(t)->first - t->first;
 			int ticks = measures * ticksPerMeasure;
 
 			if (accMeasures + measures >= measure)
@@ -128,10 +147,10 @@ namespace MikuMikuWorld
 
 			total += ticks;
 			accMeasures += measures;
-			lastSign = t + 1;
+			lastSignature = std::next(t);
 		}
 
-		total += (measure - signatures[lastSign].measure) * (beatsPerMeasure(signatures[lastSign]) * beatTicks);
+		total += (measure - lastSignature->first) * (beatsPerMeasure(lastSignature->second) * beatTicks);
 		return total;
  	}
 
@@ -146,6 +165,17 @@ namespace MikuMikuWorld
 		return 0;
 	}
 
+	int findHighSpeedChange(int tick, const std::vector<HiSpeedChange>& hiSpeeds)
+	{
+		for (int i = hiSpeeds.size() - 1; i >= 0; --i)
+		{
+			if (hiSpeeds[i].tick <= tick)
+				return i;
+		}
+		
+		return -1;
+	}
+
 	const Tempo& getTempoAt(int tick, const std::vector<Tempo>& tempos)
 	{
 		for (auto it = tempos.rbegin(); it != tempos.rend(); ++it)
@@ -153,5 +183,17 @@ namespace MikuMikuWorld
 				return *it;
 
 		return tempos[0];
+	}
+
+	int snapTick(int tick, int div)
+	{
+		const int subDivision = TICKS_PER_BEAT / (static_cast<float>(div) / 4);
+		const int remainingTicks = tick % subDivision;
+
+		tick -= remainingTicks;
+		if (remainingTicks >= subDivision / 2)
+			tick += subDivision;
+
+		return std::max(tick, 0);
 	}
 }

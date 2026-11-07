@@ -1,1158 +1,799 @@
-#include "ScoreEditor.h"
-#include "ResourceManager.h"
-#include "HistoryManager.h"
-#include "Rendering/Renderer.h"
-#include "Score.h"
-#include "SUSIO.h"
-#include "Utilities.h"
-#include "IconsFontAwesome5.h"
-#include "Colors.h"
-#include "InputListener.h"
+#include "Application.h"
+#include "ApplicationConfiguration.h"
+#include "File.h"
 #include "UI.h"
-#include "FileDialog.h"
-#include "StringOperations.h"
-#include <string>
-#include <math.h>
-#include <map>
-#include <unordered_set>
-#include <algorithm>
+#include "Constants.h"
+#include "Utilities.h"
+#include "ImageCrop.h"
+#include "NativeScoreSerializer.h"
+#include "ScoreSerializeWindow.h"
 #include <filesystem>
+#include <Windows.h>
 
 namespace MikuMikuWorld
 {
-	ScoreEditor::ScoreEditor() : score{}, prevUpdateScore{},
-		isHoveringNote{ false }, isHoldingNote{ false }, isMovingNote{ false }, currentMode{ 0 },
-		dummy{ NoteType::Tap }, dummyStart{ NoteType::Hold }, dummyMid{ NoteType::HoldMid }, dummyEnd{ NoteType::HoldEnd }
+	static MultiInputBinding* timelineModeBindings[] =
 	{
-		drawHoldStepOutline = true;
-		showRenderStats = true;
-		defaultNoteWidth = 3;
-		defaultStepType = HoldStepType::Visible;
-		skipUpdateAfterSortingSteps = false;
-		framebuffer = new Framebuffer(1080, 1920);
+		&config.input.timelineSelect,
+		&config.input.timelineTap,
+		&config.input.timelineHold,
+		&config.input.timelineHoldMid,
+		&config.input.timelineFlick,
+		&config.input.timelineCritical,
+		&config.input.timelineFriction,
+		&config.input.timelineGuide,
+		&config.input.timelineBpm,
+		&config.input.timelineTimeSignature,
+		&config.input.timelineHiSpeed
+	};
 
-		time			= 0;
-		songStart		= 0;
-		songEnd			= 0;
-		masterVolume	= 0.8f;
-		bgmVolume		= 1.0f;
-		seVolume		= 1.0f;
-		playing			= false;
-		dragging		= false;
-		hasEdit			= false;
-		playStartTime	= 0;
+	ScoreEditor::ScoreEditor() : presetManager(Application::getAppDir() + "library")
+	{
+		renderer = std::make_unique<Renderer>();
 
-		audio.initAudio();
-		audio.setMasterVolume(masterVolume);
-		audio.setBGMVolume(bgmVolume);
-		audio.setSEVolume(seVolume);
+		context.audio.initializeAudioEngine();
+		context.audio.setMasterVolume(config.masterVolume);
+		context.audio.setMusicVolume(config.bgmVolume);
+		context.audio.setSoundEffectsVolume(config.seVolume);
+		context.audio.loadSoundEffects();
+		context.audio.setSoundEffectsProfileIndex(config.seProfileIndex);
 
-		uptoDate = true;
+		timeline.setDivision(config.division);
+		timeline.setZoom(config.zoom);
+
+		autoSavePath = Application::getAppDir() + "auto_save";
+		autoSaveTimer.reset();
+
+		preview.loadNoteEffects(context.scorePreviewDrawData.effectView);
 	}
 
-	ScoreEditor::~ScoreEditor()
+	void ScoreEditor::writeSettings()
 	{
-		audio.uninitAudio();
+		config.masterVolume = context.audio.getMasterVolume();
+		config.bgmVolume = context.audio.getMusicVolume();
+		config.seVolume = context.audio.getSoundEffectsVolume();
+
+		config.division = timeline.getDivision();
+		config.zoom = timeline.getZoom();
 	}
 
-	void ScoreEditor::readScoreMetadata()
+	void ScoreEditor::uninitialize()
 	{
-		workingData.title = score.metadata.title;
-		workingData.designer = score.metadata.author;
-		workingData.artist = score.metadata.artist;
-		
-		loadMusic(score.metadata.musicFile);
-		musicOffset = score.metadata.musicOffset;
-		audio.setBGMOffset(time, musicOffset);
+		context.audio.uninitializeAudioEngine();
+		timeline.background.dispose();
 	}
 
-	void ScoreEditor::writeScoreMetadata()
+	void ScoreEditor::update()
 	{
-		score.metadata.title = workingData.title;
-		score.metadata.author = workingData.designer;
-		score.metadata.artist = workingData.artist;
-		score.metadata.musicFile = musicFile;
-		score.metadata.musicOffset = musicOffset;
-	}
-
-	void ScoreEditor::loadScore(const std::string& filename)
-	{
-		resetEditor();
-		
-		std::string extension = File::getFileExtension(filename);
-		std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-		std::string title = windowUntitled;
-
-		if (extension == SUS_EXTENSION)
+		if (!isFullScreenPreview())
 		{
-			SUSIO susIO;
-			score = susIO.importSUS(filename);
-			workingData.filename = "";
-
-			// project not saved
-			uptoDate = false;
-		}
-		else if (extension == MMWS_EXTENSION)
-		{
-			score = deserializeScore(filename);
-			workingData.filename = filename;
-			title = File::getFilenameWithoutExtension(filename);
+			drawMenubar();
+			drawToolbar();
 		}
 
-		readScoreMetadata();
-		stats.calculateStats(score);
-		UI::setWindowTitle(title);
-	}
-
-	void ScoreEditor::loadMusic(const std::string& filename)
-	{
-		audio.changeBGM(filename);
-		musicFile = filename;
-	}
-
-	void ScoreEditor::open()
-	{
-		std::string filename;
-		if (FileDialog::openFile(filename, FileType::ScoreFile))
-			loadScore(filename);
-	}
-
-	void ScoreEditor::save()
-	{
-		if (workingData.filename.size())
+		if (!ImGui::GetIO().WantCaptureKeyboard)
 		{
-			writeScoreMetadata();
-			serializeScore(score, workingData.filename);
-			uptoDate = true;
-			UI::setWindowTitle(File::getFilenameWithoutExtension(workingData.filename));
+			if (ImGui::IsAnyPressed(config.input.create)) Application::windowState.resetting = true;
+			if (ImGui::IsAnyPressed(config.input.open))
+			{
+				Application::windowState.resetting = true;
+				Application::windowState.shouldPickScore = true;
+			}
+
+			if (ImGui::IsAnyPressed(config.input.openSettings)) settingsWindow.open = true;
+			if (ImGui::IsAnyPressed(config.input.openHelp)) help();
+			if (ImGui::IsAnyPressed(config.input.save)) trySave(context.workingData.filename);
+			if (ImGui::IsAnyPressed(config.input.saveAs)) saveAs();
+			if (ImGui::IsAnyPressed(config.input.exportScore)) exportScore();
+			if (ImGui::IsAnyPressed(config.input.togglePlayback)) timeline.setPlaying(context, !timeline.isPlaying());
+			if (ImGui::IsAnyPressed(config.input.stop)) timeline.stop(context);
+			if (ImGui::IsAnyPressed(config.input.previousTick, true)) timeline.previousTick(context);
+			if (ImGui::IsAnyPressed(config.input.nextTick, true)) timeline.nextTick(context);
+			if (ImGui::IsAnyPressed(config.input.togglePreviewFullWindow, false)) preview.setFullWindow(!preview.isFullWindow());
+
+			if (!preview.isFullWindow())
+			{
+				if (ImGui::IsAnyPressed(config.input.selectAll)) context.selectAll();
+				if (ImGui::IsAnyPressed(config.input.deleteSelection)) context.deleteSelection();
+				if (ImGui::IsAnyPressed(config.input.cutSelection)) context.cutSelection();
+				if (ImGui::IsAnyPressed(config.input.copySelection)) context.copySelection();
+				if (ImGui::IsAnyPressed(config.input.paste)) context.paste(false);
+				if (ImGui::IsAnyPressed(config.input.flipPaste)) context.paste(true);
+				if (ImGui::IsAnyPressed(config.input.cancelPaste)) context.cancelPaste();
+				if (ImGui::IsAnyPressed(config.input.flip)) context.flipSelection();
+				if (ImGui::IsAnyPressed(config.input.undo)) context.undo();
+				if (ImGui::IsAnyPressed(config.input.redo)) context.redo();
+				if (ImGui::IsAnyPressed(config.input.zoomOut, true)) timeline.setZoom(timeline.getZoom() - 0.25f);
+				if (ImGui::IsAnyPressed(config.input.zoomIn, true)) timeline.setZoom(timeline.getZoom() + 0.25f);
+				if (ImGui::IsAnyPressed(config.input.decreaseNoteSize, true)) edit.noteWidth = std::clamp(edit.noteWidth - 1, MIN_NOTE_WIDTH, MAX_NOTE_WIDTH);
+				if (ImGui::IsAnyPressed(config.input.increaseNoteSize, true)) edit.noteWidth = std::clamp(edit.noteWidth + 1, MIN_NOTE_WIDTH, MAX_NOTE_WIDTH);
+				if (ImGui::IsAnyPressed(config.input.shrinkDown)) context.shrinkSelection(Direction::Down);
+				if (ImGui::IsAnyPressed(config.input.shrinkUp)) context.shrinkSelection(Direction::Up);
+				if (ImGui::IsAnyPressed(config.input.connectHolds)) context.connectHoldsInSelection();
+				if (ImGui::IsAnyPressed(config.input.splitHold)) context.splitHoldInSelection();
+
+				for (int i = 0; i < (int)TimelineMode::TimelineModeMax; ++i)
+					if (ImGui::IsAnyPressed(*timelineModeBindings[i])) timeline.changeMode((TimelineMode)i, edit);
+
+				if (ImGui::IsAnyPressed(config.input.insertSkill)) timeline.insertSkill(context, context.currentTick);
+				if (ImGui::IsAnyPressed(config.input.insertCheer)) timeline.insertCheer(context, context.currentTick);
+				if (ImGui::IsAnyPressed(config.input.insertFever)) timeline.beginInsertFever(context, context.currentTick);
+			}
+		}
+
+		if (config.matchTimelineSizeToScreen)
+		{
+			int laneWidth = static_cast<int>(timeline.getWidth() * 0.45f / NUM_LANES);
+			timeline.laneWidth = std::clamp(laneWidth, MIN_LANE_WIDTH, MAX_LANE_WIDTH);
 		}
 		else
 		{
-			saveAs();
+			timeline.laneWidth = config.timelineWidth;
 		}
-	}
 
-	void ScoreEditor::save(const std::string& filename)
-	{
-		writeScoreMetadata();
-		serializeScore(score, filename);
-	}
+		timeline.notesHeight = config.matchNotesSizeToTimeline ? std::clamp(static_cast<int>(timeline.laneWidth), MIN_NOTES_HEIGHT, MAX_NOTES_HEIGHT) : config.notesHeight;
 
-	void ScoreEditor::saveAs()
-	{
-		std::string filename;
-		if (FileDialog::saveFile(filename, FileType::MMWSFile))
+		if (config.backgroundBrightness != timeline.background.getBrightness())
+			timeline.background.setBrightness(config.backgroundBrightness);
+
+		if (settingsWindow.isBackgroundChangePending)
 		{
-			if (File::getFileExtension(filename) != MMWS_EXTENSION)
-				filename.append(MMWS_EXTENSION);
-
-			workingData.filename = filename;
-			writeScoreMetadata();
-			serializeScore(score, filename);
-			uptoDate = true;
-
-			UI::setWindowTitle(File::getFilenameWithoutExtension(workingData.filename));
+			static const std::string defaultBackgroundPath = Application::getAppDir() + "res\\editor\\default.png";
+			timeline.background.load(config.backgroundImage.empty() ? defaultBackgroundPath : config.backgroundImage);
+			settingsWindow.isBackgroundChangePending = false;
 		}
+
+		if (config.seProfileIndex != context.audio.getSoundEffectsProfileIndex())
+		{
+			context.audio.stopSoundEffects(false);
+			context.audio.setSoundEffectsProfileIndex(config.seProfileIndex);
+		}
+
+		if (settingsWindow.isEffectProfileChangePending)
+		{
+			preview.loadNoteEffects(context.scorePreviewDrawData.effectView);
+			debugEffectView.loadEffects();
+			settingsWindow.isEffectProfileChangePending = false;
+		}
+
+		if (propertiesWindow.isPendingLoadMusic)
+		{
+			asyncLoadMusic(propertiesWindow.pendingLoadMusicFilename);
+			propertiesWindow.isPendingLoadMusic = false;
+			propertiesWindow.pendingLoadMusicFilename.clear();
+		}
+
+		if (config.autoSaveEnabled && autoSaveTimer.elapsedMinutes() >= config.autoSaveInterval)
+		{
+			autoSave();
+			autoSaveTimer.reset();
+		}
+
+		if (recentFileNotFoundDialog.update() == DialogResult::Yes)
+		{
+			if (isArrayIndexInBounds(recentFileNotFoundDialog.removeIndex, config.recentFiles))
+				config.recentFiles.erase(config.recentFiles.begin() + recentFileNotFoundDialog.removeIndex);
+		}
+
+		settingsWindow.update();
+		aboutDialog.update();
+		serializeWindow.update(*this, context, timeline);
+
+		context.workingData.musicVideo.update(context.getTimeAtCurrentTick() - context.workingData.musicVideoOffset / 1000.0);
+
+		const bool timeline_just_created = (ImGui::FindWindowByName("###notes_timeline") == NULL);
+		ImGui::Begin(IMGUI_TITLE(ICON_FA_MUSIC, "notes_timeline"), NULL, ImGuiWindowFlags_Static | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+		ImGuiID dockId = ImGui::GetWindowDockID();
+		timeline.update(context, edit, renderer.get());
+		ImGui::End();
+
+		ImGuiWindowFlags previewWindowFlags =
+			ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_NoScrollbar |
+			ImGuiWindowFlags_NoScrollWithMouse;
+
+		ImGui::SetNextWindowDockID(dockId, ImGuiCond_FirstUseEver);
+		if (isFullScreenPreview())
+		{
+			ImGuiViewport* viewport = ImGui::GetMainViewport();
+			ImGui::SetNextWindowPos(viewport->WorkPos);
+			ImGui::SetNextWindowSize(viewport->WorkSize);
+			ImGui::SetNextWindowViewport(viewport->ID);
+			previewWindowFlags |= ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize;
+
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
+
+			ImGui::Begin(IMGUI_TITLE(ICON_FA_OBJECT_GROUP, "score_preview_full"), NULL, previewWindowFlags);
+			ImGui::PopStyleVar(2);
+		}
+		else
+		{
+			ImGui::Begin(IMGUI_TITLE(ICON_FA_OBJECT_GROUP, "score_preview"), NULL, previewWindowFlags);
+		}
+
+		preview.update(context, renderer.get());
+		preview.updateUI(timeline, context);
+		ImGui::End();
+
+		if (timeline_just_created) ImGui::SetWindowFocus("###notes_timeline");
+
+		if (config.debugEnabled)
+		{
+			debugWindow.update(context, timeline);
+			debugEffectView.update(renderer.get());
+		}
+
+		if (ImGui::Begin(IMGUI_TITLE(ICON_FA_ALIGN_LEFT, "chart_properties"), NULL, ImGuiWindowFlags_Static))
+		{
+			propertiesWindow.update(context);
+		}
+		ImGui::End();
+
+		if (ImGui::Begin(IMGUI_TITLE(ICON_FA_WRENCH, "options"), NULL, ImGuiWindowFlags_Static))
+		{
+			optionsWindow.update(context, edit, timeline.getMode());
+		}
+		ImGui::End();
+
+		if (ImGui::Begin(IMGUI_TITLE(ICON_FA_DRAFTING_COMPASS, "presets"), NULL, ImGuiWindowFlags_Static))
+		{
+			presetsWindow.update(context, presetManager);
+		}
+		ImGui::End();
+
+#ifdef _DEBUG
+		if (showImGuiDemoWindow)
+			ImGui::ShowDemoWindow(&showImGuiDemoWindow);
+#endif
 	}
 
-	void ScoreEditor::exportSUS()
+	size_t ScoreEditor::updateRecentFilesList(const std::string& entry)
 	{
-		std::string filename;
-		if (FileDialog::saveFile(filename, FileType::SUSFile))
-		{
-			if (File::getFileExtension(filename) != SUS_EXTENSION)
-				filename.append(SUS_EXTENSION);
+		while (config.recentFiles.size() >= maxRecentFilesEntries)
+			config.recentFiles.pop_back();
 
-			writeScoreMetadata();
-			SUSIO susIO;
-			susIO.exportSUS(score, filename);
-		}
+		// Remove the entry (if found) to the beginning of the vector
+		auto it = std::find(config.recentFiles.begin(), config.recentFiles.end(), entry);
+		if (it != config.recentFiles.end())
+			config.recentFiles.erase(it);
+
+		config.recentFiles.insert(config.recentFiles.begin(), entry);
+		return config.recentFiles.size();
 	}
 
 	void ScoreEditor::reset()
 	{
-		resetEditor();
+		timeline.setPlaying(context, false);
+
+		context.score = {};
+		context.workingData = {};
+		context.history.clear();
+		context.scoreStats.reset();
+		context.scorePreviewDrawData.clear();
+		context.audio.disposeMusic();
+		context.waveformL.clear();
+		context.waveformR.clear();
+		context.clearSelection();
+
+		// New score; nothing to save
+		context.upToDate = true; 
+
 		UI::setWindowTitle(windowUntitled);
 	}
 
-	void ScoreEditor::resetEditor()
+	void ScoreEditor::loadScore(std::string filename)
 	{
-		playing = false;
-		audio.stopAllEvents();
-		audio.stopBGM();
+		if (!IO::File::exists(filename))
+			return;
 
-		selectedNotes.clear();
-		history.clear();
-		resetNextID();
-
-		workingData = EditorScoreData{};
-		score = Score();
-		stats.reset();
-
-		hasEdit = false;
-		uptoDate = true;
+		timeline.setPlaying(context, false);
+		serializeWindow.deserialize(filename);
 	}
 
-	bool ScoreEditor::isUptoDate() const
+	void ScoreEditor::loadMusic(std::string filename)
 	{
-		return uptoDate;
-	}
-
-	float ScoreEditor::getNoteYPosFromTick(int tick)
-	{
-		return canvasPos.y + tickToPosition(tick) - timelineOffset + canvasSize.y;
-	}
-
-	int ScoreEditor::snapTickFromPos(float posY)
-	{
-		return snapTick(positionToTick(posY), division);
-	}
-
-	int ScoreEditor::snapTick(int tick, int div)
-	{
-		int half = (TICKS_PER_BEAT / (div / 4)) / 2;
-		int remaining = tick % (TICKS_PER_BEAT / (div / 4));
-
-		// round to closest division
-		tick -= remaining;
-		if (remaining >= half)
-			tick += half * 2;
-
-		return std::max(tick, 0);
-	}
-
-	int ScoreEditor::roundTickDown(int tick, int div)
-	{
-		return std::max(tick - (tick % (TICKS_PER_BEAT / (div / 4))), 0);
-	}
-
-	int ScoreEditor::laneFromCenterPos(int lane, int width)
-	{
-		return std::clamp(lane - (width / 2), MIN_LANE, MAX_LANE - width + 1);
-	}
-
-	int ScoreEditor::positionToTick(float pos, int div)
-	{
-		return roundf(pos / (TICK_HEIGHT * zoom) / div);
-	}
-
-	float ScoreEditor::tickToPosition(int tick, int div)
-	{
-		return tick * div * TICK_HEIGHT * zoom;
-	}
-
-	int ScoreEditor::positionToLane(float pos)
-	{
-		return (pos - laneOffset) / laneWidth;
-	}
-
-	float ScoreEditor::laneToPosition(float lane)
-	{
-		return laneOffset + (lane * laneWidth);
-	}
-
-	void ScoreEditor::togglePlaying()
-	{
-		playing ^= true;
-		if (playing)
+		propertiesWindow.isLoadingMusic = true;
+		context.waveformL.clear();
+		context.waveformR.clear();
+		
+		Result result = context.audio.loadMusic(filename);
+		if (result.isOk() || filename.empty())
 		{
-			audio.seekBGM(time);
-			audio.reSync();
-			audio.playBGM(time);
-			playStartTime = time;
+			context.workingData.musicFilename = filename;
 		}
 		else
 		{
-			audio.clearEvents();
-			audio.stopBGM();
+			std::string errorMessage = IO::formatString("%s\n%s: %s\n%s",
+				getString("error_load_music_file"),
+				getString("music_file"),
+				filename.c_str(),
+				result.getMessage().c_str()
+			);
+
+			IO::messageBox(APP_NAME, errorMessage, IO::MessageBoxButtons::Ok, IO::MessageBoxIcon::Error, Application::windowState.windowHandle);
 		}
-	}
+		
+		context.waveformL.generateMipChainsFromSampleBuffer(context.audio.musicBuffer, 0);
+		context.waveformR.generateMipChainsFromSampleBuffer(context.audio.musicBuffer, 1);
 
-	void ScoreEditor::stop()
-	{
-		playing = false;
-		time = currentTick = 0;
-		timelineOffset = timelineMinOffset;
-
-		audio.clearEvents();
-		audio.stopBGM();
-	}
-
-	void ScoreEditor::restart()
-	{
-		stop();
-		togglePlaying();
-	}
-
-	bool ScoreEditor::isPlaying()
-	{
-		return playing;
-	}
-
-	void ScoreEditor::nextTick()
-	{
-		currentTick = roundTickDown(currentTick, division);
-		currentTick += TICKS_PER_BEAT / (division / 4);
-		centerCursor(1);
-	}
-
-	void ScoreEditor::previousTick()
-	{
-		currentTick = roundTickDown(currentTick, division);
-		currentTick = std::max(currentTick - (TICKS_PER_BEAT / (division / 4)), 0);
-		centerCursor(2);
-	}
-
-	void ScoreEditor::setLaneWidth(float width)
-	{
-		laneWidth = std::clamp((int)width, MIN_LANE_WIDTH, MAX_LANE_WIDTH);
-	}
-
-	void ScoreEditor::setNotesHeight(float height)
-	{
-		notesHeight = std::clamp((int)height, MIN_NOTES_HEIGHT, MAX_NOTES_HEIGHT);
-	}
-
-	void ScoreEditor::setZoom(float val)
-	{
-		int tick = positionToTick(timelineOffset - canvasSize.y);
-		float x1 = canvasPos.y - tickToPosition(tick) + timelineOffset;
-
-		zoom = std::clamp(val, MIN_ZOOM, MAX_ZOOM);
-
-		float x2 = canvasPos.y - tickToPosition(tick) + timelineOffset;
-		timelineOffset += x1 - x2;
-	}
-
-	void ScoreEditor::pushHistory(const std::string& description, const Score& prev, const Score& curr)
-	{
-		history.pushHistory(description, prev, curr);
-
-		if (uptoDate)
-			UI::setWindowTitle("*" + (workingData.filename.size() ? File::getFilenameWithoutExtension(workingData.filename) : windowUntitled));
-
-		uptoDate = false;
-		stats.calculateStats(score);
-	}
-
-	bool ScoreEditor::hasUndo() const
-	{
-		return history.hasUndo();
-	}
-
-	bool ScoreEditor::hadRedo() const
-	{
-		return history.hasRedo();
-	}
-
-	void ScoreEditor::undo()
-	{
-		if (history.hasUndo())
+		if (timeline.isPlaying())
 		{
-			score = history.undo();
-			clearSelection();
-			uptoDate = false;
+			bool prevPauseBehaviour = config.returnToLastSelectedTickOnPause;
+			config.returnToLastSelectedTickOnPause = false;
+			timeline.setPlaying(context, false);
+			timeline.setPlaying(context, true);
 
-			stats.calculateStats(score);
-		}
-	}
-
-	void ScoreEditor::redo()
-	{
-		if (history.hasRedo())
-		{
-			score = history.redo();
-			clearSelection();
-			uptoDate = false;
-
-			stats.calculateStats(score);
-		}
-	}
-
-	std::string ScoreEditor::getNextUndo() const
-	{
-		return history.peekUndo();
-	}
-
-	std::string ScoreEditor::getNextRedo() const
-	{
-		return history.peekRedo();
-	}
-
-	void ScoreEditor::centerCursor(int mode)
-	{
-		cursorPos = tickToPosition(currentTick);
-		float offset = canvasSize.y * 0.5f;
-
-		bool exec = false;
-		switch (mode)
-		{
-		case 0:
-			exec = true;
-			break;
-		case 1:
-			if (cursorPos >= timelineOffset - offset)
-				exec = true;
-			break;
-		case 2:
-			if (cursorPos <= timelineOffset - offset)
-				exec = true;
-			break;
-		default:
-			break;
+			config.returnToLastSelectedTickOnPause = prevPauseBehaviour;
 		}
 
-		if (exec)
-			timelineOffset = cursorPos + offset;
+		propertiesWindow.isLoadingMusic = false;
 	}
 
-	void ScoreEditor::gotoMeasure(int measure)
+	void ScoreEditor::asyncLoadMusic(std::string filename)
 	{
-		if (measure < 0 || measure > 999)
-			return;
-
-		currentTick = measureToTicks(measure, TICKS_PER_BEAT, score.timeSignatures);
-		centerCursor();
+		if (loadMusicFuture.valid())
+			loadMusicFuture.get();
+		
+		loadMusicFuture = std::async(&ScoreEditor::loadMusic, this, filename);
 	}
 
-	void ScoreEditor::updateNoteSE()
+	void ScoreEditor::open()
 	{
-		songPosLastFrame = songPos;
+		IO::FileDialog fileDialog{};
+		fileDialog.parentWindowHandle = Application::windowState.windowHandle;
+		fileDialog.title = "Open Chart";
+		fileDialog.filters = {
+			IO::combineFilters("All Supported Files",{ IO::mmwsFilter, IO::susFilter }),
+			IO::mmwsFilter,
+			IO::susFilter,
+			// IO::lvlDatFilter, // Temporarily disable openning lvldata format
+			IO::allFilter
+		};
+		
+		if (fileDialog.openFile() == IO::FileDialogResult::OK)
+			loadScore(fileDialog.outputFilename);
+	}
 
-		if (audio.isMusicInitialized() && playing && audio.getAudioPosition() >= musicOffset && !audio.isMusicAtEnd())
-			songPos = audio.getAudioPosition();
-		else
-			songPos = time;
+	bool ScoreEditor::trySave(std::string filename)
+	{
+		return filename.empty() ? saveAs() : save(filename);
+	}
 
-		if (!playing)
-			return;
-
-		std::unordered_map<std::string, int> tickSEMap;
-
-		for (const auto& it : score.notes)
+	bool ScoreEditor::save(std::string filename)
+	{
+		try
 		{
-			const Note& note = it.second;
-			float noteTime = accumulateDuration(note.tick, TICKS_PER_BEAT, score.tempoChanges);
-			float offsetNoteTime = noteTime - audioLookAhead;
+			context.score.metadata = context.workingData.toScoreMetadata();
+			NativeScoreSerializer().serialize(context.score, filename);
 
-			if (offsetNoteTime >= songPosLastFrame && offsetNoteTime < songPos)
+			UI::setWindowTitle(IO::File::getFilename(filename));
+			context.upToDate = true;
+		}
+		catch (const std::exception& err)
+		{
+			IO::messageBox(
+				APP_NAME,
+				IO::formatString("%s\n%s: %s", getString("error_save_score_file"), getString("error"), err.what()),
+				IO::MessageBoxButtons::Ok,
+				IO::MessageBoxIcon::Error,
+				Application::windowState.windowHandle
+			);
+
+			return false;
+		}
+
+		return true;
+	}
+
+	bool ScoreEditor::saveAs()
+	{
+		IO::FileDialog fileDialog{};
+		fileDialog.title = "Save Chart";
+		fileDialog.filters = { IO::mmwsFilter };
+		fileDialog.defaultExtension = "mmws";
+		fileDialog.parentWindowHandle = Application::windowState.windowHandle;
+		fileDialog.inputFilename = IO::File::getFilenameWithoutExtension(context.workingData.filename);
+
+		if (fileDialog.saveFile() == IO::FileDialogResult::OK)
+		{
+			context.workingData.filename = fileDialog.outputFilename;
+			bool saved = save(context.workingData.filename);
+			if (saved)
+				updateRecentFilesList(fileDialog.outputFilename);
+
+			return saved;
+		}
+
+		return false;
+	}
+
+	void ScoreEditor::exportScore()
+	{
+		serializeWindow.serialize(context);
+	}
+
+	void ScoreEditor::drawMenubar()
+	{
+		ImGui::BeginMainMenuBar();
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 2));
+
+		if (ImGui::BeginMenu(getString("file")))
+		{
+			if (ImGui::MenuItem(getString("new"), ToShortcutString(config.input.create)))
+				Application::windowState.resetting = true;
+
+			if (ImGui::MenuItem(getString("open"), ToShortcutString(config.input.open)))
 			{
-				std::string se = getNoteSE(note, score);
-				std::string key = std::to_string(note.tick) + "-" + se;
-				if (se.size());
-				{
-					if (tickSEMap.find(key) == tickSEMap.end())
-					{
-						audio.pushAudioEvent(se.c_str(), noteTime - playStartTime, -1, false);
-						tickSEMap[key] = note.tick;
-					}
-				}
-
-				if (note.getType() == NoteType::Hold)
-				{
-					float endTime = accumulateDuration(score.notes.at(score.holdNotes.at(note.ID).end).tick, TICKS_PER_BEAT, score.tempoChanges);
-					audio.pushAudioEvent(note.critical ? SE_CRITICAL_CONNECT : SE_CONNECT, noteTime - playStartTime, endTime - playStartTime + 0.02f, true);
-				}
+				Application::windowState.resetting = true;
+				Application::windowState.shouldPickScore = true;
 			}
-			else if (time == playStartTime)
+
+			if (ImGui::BeginMenu(getString("open_recent")))
 			{
-				// playback just started
-				if (noteTime >= time && offsetNoteTime < time)
+				for (size_t index = 0; index < config.recentFiles.size(); index++)
 				{
-					std::string se = getNoteSE(note, score);
-					std::string key = std::to_string(note.tick) + "-" + se;
-					if (se.size())
+					const std::string& entry = config.recentFiles[index];
+					if (ImGui::MenuItem(entry.c_str()))
 					{
-						if (tickSEMap.find(key) == tickSEMap.end())
+						if (IO::File::exists(entry))
 						{
-							audio.pushAudioEvent(se.c_str(), noteTime - playStartTime, -1, false);
-							tickSEMap[key] = note.tick;
+							Application::windowState.resetting = true;
+							Application::pendingLoadScoreFile = entry;
+						}
+						else
+						{
+							recentFileNotFoundDialog.removeFilename = entry;
+							recentFileNotFoundDialog.removeIndex = index;
+							recentFileNotFoundDialog.open = true;
 						}
 					}
 				}
 
-				// playback started mid-hold
-				if (note.getType() == NoteType::Hold)
-				{
-					int endTick = score.notes.at(score.holdNotes.at(note.ID).end).tick;
-					float endTime = accumulateDuration(endTick, TICKS_PER_BEAT, score.tempoChanges);
+				ImGui::Separator();
+				if (ImGui::MenuItem(getString("clear"), nullptr, false, !config.recentFiles.empty()))
+					config.recentFiles.clear();
 
-					if ((noteTime - time) <= audioLookAhead && endTime > time)
-						audio.pushAudioEvent(note.critical ? SE_CRITICAL_CONNECT : SE_CONNECT, std::max(0.0f, noteTime - playStartTime), endTime - playStartTime + 0.02f, true);
-				}
-			}
-		}
-	}
-
-	void ScoreEditor::drawMeasures()
-	{
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-		ImU32 bgColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
-		int texIndex = ResourceManager::getTexture("default");
-		if (texIndex != -1)
-		{
-			drawList->AddImage((void*)ResourceManager::textures[texIndex].getID(), canvasPos, canvasPos + canvasSize,
-				ImVec2(0, 0), ImVec2(1, 1), 0xFF656565);
-		}
-		else
-		{
-			ImGui::RenderFrame(boundaries.Min, boundaries.Max, bgFallbackColor, true, 1.0f);
-		}
-
-		const float x1 = canvasPos.x + laneOffset;
-		const float x2 = x1 + timelineWidth;
-
-		int firstTick = std::max(0, positionToTick(timelineOffset - canvasSize.y));
-		int lastTick = positionToTick(timelineOffset);
-		int measure = accumulateMeasures(firstTick, TICKS_PER_BEAT, score.timeSignatures);
-		firstTick = measureToTicks(measure, TICKS_PER_BEAT, score.timeSignatures);
-
-		int tsIndex = findTimeSignature(measure, score.timeSignatures);
-		int subDiv = TICKS_PER_BEAT / (division < 192 ? (division / 4) : 1);
-		int div = TICKS_PER_BEAT;
-
-		for (int tick = firstTick; tick <= lastTick; tick += subDiv)
-		{
-			const float y = canvasPos.y - tickToPosition(tick) + timelineOffset;
-			int measure = accumulateMeasures(tick, TICKS_PER_BEAT, score.timeSignatures);
-
-			// time signature changes on current measure
-			if (score.timeSignatures.find(measure) != score.timeSignatures.end())
-				tsIndex = measure;
-
-			if (!(tick % div))
-				drawList->AddLine(ImVec2(x1, y), ImVec2(x2, y), divColor1, primaryLineThickness);
-			else if (division < 192)
-				drawList->AddLine(ImVec2(x1, y), ImVec2(x2, y), divColor2, secondaryLineThickness);
-		}
-
-		tsIndex = findTimeSignature(measure, score.timeSignatures);
-		int ticksPerMeasure = beatsPerMeasure(score.timeSignatures[tsIndex]) * TICKS_PER_BEAT;
-
-		for (int tick = firstTick; tick < lastTick; tick += ticksPerMeasure)
-		{
-			if (score.timeSignatures.find(measure) != score.timeSignatures.end())
-			{
-				tsIndex = measure;
-				ticksPerMeasure = beatsPerMeasure(score.timeSignatures[tsIndex]) * TICKS_PER_BEAT;
+				ImGui::EndMenu();
 			}
 
-			std::string measureStr = "#" + std::to_string(measure);
-			const float txtPos = x1 - MEASURE_WIDTH - (ImGui::CalcTextSize(measureStr.c_str()).x * 0.5f);
-			const float y = canvasPos.y - tickToPosition(tick) + timelineOffset;
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("save"), ToShortcutString(config.input.save)))
+				trySave(context.workingData.filename);
 
-			drawList->AddLine(ImVec2(x1 - MEASURE_WIDTH, y), ImVec2(x2 + MEASURE_WIDTH, y), measureColor, 1.5f);
-			drawList->AddText(ImGui::GetFont(), 24.0f, ImVec2(txtPos, y), measureColor, measureStr.c_str());
+			if (ImGui::MenuItem(getString("save_as"), ToShortcutString(config.input.saveAs)))
+				saveAs();
+
+			if (ImGui::MenuItem(getString("export"), ToShortcutString(config.input.exportScore)))
+				exportScore();
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("exit"), ToShortcutString(ImGuiKey_F4, ImGuiMod_Alt)))
+				Application::windowState.closing = true;
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu(getString("edit")))
+		{
+			if (ImGui::MenuItem(getString("undo"), ToShortcutString(config.input.undo), false, context.history.hasUndo()))
+				context.undo();
+
+			if (ImGui::MenuItem(getString("redo"), ToShortcutString(config.input.redo), false, context.history.hasRedo()))
+				context.redo();
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("delete"), ToShortcutString(config.input.deleteSelection), false, context.selectedNotes.size()))
+				context.deleteSelection();
+
+			if (ImGui::MenuItem(getString("cut"), ToShortcutString(config.input.cutSelection), false, context.selectedNotes.size()))
+				context.cutSelection();
+
+			if (ImGui::MenuItem(getString("copy"), ToShortcutString(config.input.copySelection), false, context.selectedNotes.size()))
+				context.copySelection();
+
+			if (ImGui::MenuItem(getString("paste"), ToShortcutString(config.input.paste)))
+				context.paste(false);
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("select_all"), ToShortcutString(config.input.selectAll)))
+				context.selectAll();
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("insert_skill"), ToShortcutString(config.input.insertSkill), nullptr, !timeline.isPlaying()))
+				timeline.insertSkill(context, context.currentTick);
+
+			if (ImGui::MenuItem(getString("insert_cheer"), ToShortcutString(config.input.insertCheer), nullptr, !timeline.isPlaying()))
+				timeline.insertCheer(context, context.currentTick);
+
+			if (ImGui::MenuItem(getString("insert_fever"), ToShortcutString(config.input.insertFever), nullptr, !timeline.isPlaying()))
+				timeline.beginInsertFever(context, context.currentTick);
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("settings"), ToShortcutString(config.input.openSettings)))
+				settingsWindow.open = true;
+
+			ImGui::EndMenu();
+		}
+		
+		if (ImGui::BeginMenu(getString("view")))
+		{
+			ImGui::MenuItem(getString("show_step_outlines"), NULL, &timeline.drawHoldStepOutlines);
+			ImGui::MenuItem(getString("hide_step_outlines_in_playback"), NULL, &config.hideStepOutlinesInPlayback);
+			ImGui::MenuItem(getString("cursor_auto_scroll"), NULL, &config.followCursorInPlayback);
+			ImGui::MenuItem(getString("return_to_last_tick"), NULL, &config.returnToLastSelectedTickOnPause);
+			ImGui::MenuItem(getString("draw_waveform"), NULL, &config.drawWaveform);
+			ImGui::MenuItem(getString("stop_at_end"), NULL, &config.stopAtEnd);
+			ImGui::MenuItem(getString("preview_draw_toolbar"), NULL, &config.pvDrawToolbar);
 			
-			++measure;
-		}
-	}
+			bool isPreviewFullScreen = isFullScreenPreview();
+			if (ImGui::MenuItem(getString("fullscreen_preview"), ToShortcutString(config.input.togglePreviewFullWindow), &isPreviewFullScreen))
+				preview.setFullWindow(isPreviewFullScreen);
 
-	void ScoreEditor::drawLanes()
-	{
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-		for (int l = 0; l <= NUM_LANES; ++l)
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu(getString("presets")))
 		{
-			const float x = canvasPos.x + laneToPosition(l);
-			const bool boldLane = !(l & 1);
-			const ImU32 color = boldLane ? divColor1 : divColor2;
-			const float thickness = boldLane ? primaryLineThickness : secondaryLineThickness;
-			drawList->AddLine(ImVec2(x, canvasPos.y), ImVec2(x, canvasPos.y + canvasSize.y), color, secondaryLineThickness);
+			if (ImGui::MenuItem(getString("create_preset"), NULL, false, !context.selectedNotes.empty()))
+				presetsWindow.openCreatePresetDialog();
+			
+			if (ImGui::MenuItem(getString("import_preset"), NULL, false, true))
+				openImportPresetDialog();
+			
+			if (ImGui::MenuItem(getString("reload_presets"), NULL, false, true))
+			{
+				presetManager.presets.clear();
+				loadPresets();
+			}
+			
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("open_presets_folder"), NULL, false, true))
+			{
+				if (!std::filesystem::exists(presetManager.getPresetsPath()))
+					std::filesystem::create_directory(presetManager.getPresetsPath());
+				ShellExecuteW(0, 0, presetManager.getPresetsPath().data(), 0, 0, SW_SHOW);
+			}
+			
+			ImGui::EndMenu();
 		}
-	}
-
-	void ScoreEditor::updateCursor()
-	{
-		hoverTick = snapTickFromPos(-mousePos.y);
-		hoverLane = positionToLane(mousePos.x);
-		if (ImGui::IsMouseClicked(0) && !isHoveringNote && mouseInTimeline && !playing &&
-			!UI::isAnyPopupOpen() && currentMode == TimelineMode::Select && ImGui::IsWindowFocused())
-		{
-			currentTick = hoverTick;
-		}
-
-		const float x1 = canvasPos.x + laneOffset;
-		const float x2 = x1 + timelineWidth;
-		const float y = canvasPos.y - tickToPosition(currentTick) + timelineOffset;
-		const float triPtOffset = 8.0f;
-		const float triXPos = x1 - (triPtOffset * 2);
-
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-		drawList->AddTriangleFilled(ImVec2(triXPos, y - triPtOffset), ImVec2(triXPos, y + triPtOffset), ImVec2(triXPos + (triPtOffset * 2), y), cursorColor);
-		drawList->AddLine(ImVec2(x1, y), ImVec2(x2, y), cursorColor, primaryLineThickness + 1.0f);
-	}
-
-	void ScoreEditor::updateTempoChanges()
-	{
-		static float editBPM = 0;
-		const float x1 = canvasPos.x + laneOffset;
-		const float x2 = x1 + timelineWidth + MEASURE_WIDTH;
-		const float btnW = 100.0f;
-		const float btnH = 30.0f;
-		const float btnX = x2 - MEASURE_WIDTH;
 		
-		ImVec2 removeBtnSz{ -1, UI::btnSmall.y + 2 };
-		int removeBPM = -1;
-
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-		for (int index = 0; index < score.tempoChanges.size(); ++index)
+		if (config.debugEnabled)
 		{
-			Tempo& tempo = score.tempoChanges[index];
-
-			const float y = canvasPos.y - tickToPosition(tempo.tick) + timelineOffset;
-
-			std::string bpmStr = formatString("%g", tempo.bpm) + " BPM";
-			drawList->AddLine(ImVec2(x1, y), ImVec2(x2, y), tempoColor, primaryLineThickness);
-			drawList->AddText(ImGui::GetFont(), 24.0f, ImVec2(x2 - MEASURE_WIDTH + 20.0f, y - 25.0f), tempoColor, bpmStr.c_str());
-
-			std::string id = "bpm" + std::to_string(index);
-			if (UI::transparentButton2(id.c_str(), ImVec2(btnX, y - btnH), ImVec2(btnW, btnH)))
-				editBPM = tempo.bpm;
-
-			ImGui::SetNextWindowSize(ImVec2(250, -1), ImGuiCond_Always);
-			if (ImGui::BeginPopupContextItem(std::to_string(index).c_str(), ImGuiPopupFlags_MouseButtonLeft | ImGuiPopupFlags_NoOpenOverExistingPopup))
+			if (ImGui::BeginMenu(getString("debug")))
 			{
-				ImGui::Text("Edit Tempo");
-				ImGui::Separator();
-
-				UI::beginPropertyColumns();
-				UI::addReadOnlyProperty("Tick", std::to_string(tempo.tick));
-				UI::addFloatProperty("BPM", editBPM, "%g");
-				UI::endPropertyColumns();
-
-				if (ImGui::IsItemDeactivatedAfterEdit())
-				{
-					Score prev = score;
-					tempo.bpm = std::clamp(editBPM, MIN_BPM, MAX_BPM);
-
-					pushHistory("Change tempo", prev, score);
-				}
-
-				// cannot remove the first tempo change
-				if (tempo.tick != 0)
-				{
-					if (ImGui::Button("Remove", removeBtnSz))
-					{
-						ImGui::CloseCurrentPopup();
-						removeBPM = index;
-					}
-				}
-
-				ImGui::EndPopup();
-			}
-		}
-
-		if (removeBPM != -1)
-		{
-			Score prev = score;
-			score.tempoChanges.erase(score.tempoChanges.begin() + removeBPM);
-			pushHistory("Remove tempo change", prev, score);
-		}
-	}
-
-	void ScoreEditor::updateTimeSignatures()
-	{
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-		const float x1 = canvasPos.x + laneOffset - MEASURE_WIDTH;
-		const float x2 = canvasPos.x + laneOffset + timelineWidth;
-		const float btnW = 60.0f;
-		const float btnH = 30.0f;
-		const float btnX = canvasPos.x + laneOffset - btnW;
-
-		ImVec2 padding{ ImGui::GetStyle().WindowPadding };
-		ImVec2 removeBtnSz{ -1, UI::btnSmall.y + 2 };
-		int removeTS = -1;
-
-		for (auto& it : score.timeSignatures)
-		{
-			const int ticks = measureToTicks(it.second.measure, TICKS_PER_BEAT, score.timeSignatures);
-			const float y = canvasPos.y - tickToPosition(ticks) + timelineOffset;
-
-			std::string tStr = std::to_string(it.second.numerator) + "/" + std::to_string(it.second.denominator);
-			drawList->AddLine(ImVec2(x1, y), ImVec2(x2, y), timeColor, primaryLineThickness);
-			drawList->AddText(ImGui::GetFont(), 24.0f, ImVec2(x1 - 20.0f, y - 25.0f), timeColor, tStr.c_str());
-
-			static int editTsNum = 0;
-			static int editTsDen = 0;
-			std::string id = "ts-" + std::to_string(it.second.measure);
-			if (UI::transparentButton2(id.c_str(), ImVec2(btnX, y - btnH), ImVec2(btnW, btnH)))
-			{
-				editTsNum = it.second.numerator;
-				editTsDen = it.second.denominator;
-			}
-
-			ImGui::SetNextWindowSize(ImVec2(250, -1), ImGuiCond_Always);
-			std::string wId = "TS-" + std::to_string(it.second.measure);
-			if (ImGui::BeginPopupContextItem(wId.c_str(), ImGuiPopupFlags_MouseButtonLeft | ImGuiPopupFlags_NoOpenOverExistingPopup))
-			{
-				ImGui::Text("Edit Time Signature");
-				ImGui::Separator();
-
-				UI::beginPropertyColumns();
-				UI::addReadOnlyProperty("Measure", std::to_string(it.second.measure));
-				if (UI::addFractionProperty("Time Signature", editTsNum, editTsDen))
-				{
-					Score prev = score;
-					it.second.numerator = std::clamp(abs(editTsNum), MIN_TIME_SIGN, MAX_TIME_SIGN);
-					it.second.denominator = std::clamp(abs(editTsDen), MIN_TIME_SIGN, MAX_TIME_SIGN);
-
-					pushHistory("Change time signature", prev, score);
-				}
-				UI::endPropertyColumns();
-
-				// cannot remove the first time signature
-				if (it.second.measure != 0)
-				{
-					if (ImGui::Button("Remove", removeBtnSz))
-					{
-						ImGui::CloseCurrentPopup();
-						removeTS = it.second.measure;
-					}
-				}
-
-				ImGui::EndPopup();
-			}
-		}
-
-		if (score.timeSignatures.find(removeTS) != score.timeSignatures.end())
-		{
-			Score prev = score;
-			score.timeSignatures.erase(removeTS);
-			pushHistory("Remove time signature", prev, score);
-		}
-	}
-
-	bool ScoreEditor::noteControl(const ImVec2& pos, const ImVec2& sz, const char* id, ImGuiMouseCursor cursor)
-	{
-		ImGui::SetCursorScreenPos(pos);
-		ImGui::InvisibleButton(id, sz);
-		if (ImGui::IsItemHovered())
-			ImGui::SetMouseCursor(cursor);
-
-		// note clicked
-		if (ImGui::IsItemActivated())
-		{
-			prevUpdateScore = score;
-			ctrlMousePos = mousePos;
-			holdLane = hoverLane;
-			holdTick = hoverTick;
-		}
-
-		// holding note
-		if (ImGui::IsItemActive())
-		{
-			ImGui::SetMouseCursor(cursor);
-			isHoldingNote = true;
-			return true;
-		}
-
-		// note released
-		if (ImGui::IsItemDeactivated())
-		{
-			isHoldingNote = false;
-			if (hasEdit)
-			{
-				std::unordered_set<int> sortHolds;
-				for (auto& id : selectedNotes)
-				{
-					const Note& note = score.notes.at(id);
-					if (note.getType() == NoteType::Hold)
-						sortHolds.insert(note.ID);
-					else if (note.getType() == NoteType::HoldMid || note.getType() == NoteType::HoldEnd)
-						sortHolds.insert(note.parentID);
-				}
-
-				for (int id : sortHolds)
-				{
-					HoldNote& hold = score.holdNotes.at(id);
-					Note& start = score.notes.at(id);
-					Note& end = score.notes.at(hold.end);
-
-					if (start.tick > end.tick)
-					{
-						// swap
-						start.tick = start.tick ^ end.tick;
-						end.tick = start.tick ^ end.tick;
-						start.tick = start.tick ^ end.tick;
-					}
-
-					sortHoldSteps(score, hold);
-					skipUpdateAfterSortingSteps = true;
-				}
-
-				//if (holdLane != hoverLane || (!strcmp(id, "M") && (holdTick != hoverTick)))
-				pushHistory("Update notes", prevUpdateScore, score);
-				
-				hasEdit = false;
-			}
-		}
-
-		return false;
-	}
-
-	int ScoreEditor::findClosestHold()
-	{
-		float xt = laneToPosition(hoverLane);
-		float yt = getNoteYPosFromTick(hoverTick);
-
-		for (auto it = score.holdNotes.begin(); it != score.holdNotes.end(); ++it)
-		{
-			const HoldNote& hold = it->second;
-			const Note& start = score.notes.at(hold.start.ID);
-			const Note& end = score.notes.at(hold.end);
-			const int ID = hold.start.ID;
-
-			if (hold.steps.size())
-			{
-				const HoldStep& mid1 = hold.steps[0];
-				if (isHoldPathInTick(start, score.notes.at(mid1.ID), hold.start.ease, xt, yt))
-					return ID;
-
-				for (int step = 0; step < hold.steps.size() - 1; ++step)
-				{
-					const Note& m1 = score.notes.at(hold.steps[step].ID);
-					const Note& m2 = score.notes.at(hold.steps[step + 1].ID);
-					if (isHoldPathInTick(m1, m2, hold.steps[step].ease, xt, yt))
-						return ID;
-				}
-
-				const Note& lastMid = score.notes.at(hold.steps[hold.steps.size() - 1].ID);
-				if (isHoldPathInTick(lastMid, end, hold.steps[hold.steps.size() - 1].ease, xt, yt))
-					return ID;
-			}
-			else
-			{
-				if (isHoldPathInTick(start, end, hold.start.ease, xt, yt))
-					return ID;
-			}
-		}
-
-		return -1;
-	}
-
-	void ScoreEditor::calcDragSelection()
-	{
-		float left = std::min(dragStart.x, mousePos.x);
-		float right = std::max(dragStart.x, mousePos.x);
-		float top = std::min(dragStart.y, mousePos.y);
-		float bottom = std::max(dragStart.y, mousePos.y);
-
-		if (!InputListener::isAltDown() && !InputListener::isCtrlDown())
-			selectedNotes.clear();
-
-		for (const auto& n : score.notes)
-		{
-			const Note& note = n.second;
-			float x1 = laneToPosition(note.lane);
-			float x2 = laneToPosition(note.lane + note.width);
-			float y = -tickToPosition(note.tick);
-
-			if (right > x1 && left < x2 && isWithinRange(y, top - 10.0f, bottom + 10.0f))
-			{
-				if (InputListener::isAltDown())
-					selectedNotes.erase(note.ID);
-				else
-					selectedNotes.insert(note.ID);
-			}
-		}
-	}
-
-	bool ScoreEditor::isNoteInCanvas(const int tick)
-	{
-		const float y = getNoteYPosFromTick(tick);
-		return y >= 0 && y <= canvasSize.y + canvasPos.y + 100;
-	}
-
-	void ScoreEditor::updateNotes(Renderer* renderer)
-	{
-		// directxmath dies
-		if (canvasSize.y < 10 || canvasSize.x < 10)
-			return;
-
-		Shader* shader = ResourceManager::shaders[0];
-		shader->use();
-		shader->setMatrix4("projection", camera.getOffCenterOrthographicProjection(0, canvasSize.x, canvasPos.y, canvasPos.y + canvasSize.y));
-
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-		framebuffer->bind();
-		framebuffer->clear();
-		renderer->beginBatch();
-
-		for (auto&[id, note] : score.notes)
-		{
-			if (isNoteInCanvas(note.tick) && note.getType() == NoteType::Tap)
-			{
-				updateNote(note);
-				drawNote(note, renderer, noteTint);
-			}
-		}
-
-		for (auto&[id, hold] : score.holdNotes)
-		{
-			Note& start = score.notes.at(hold.start.ID);
-			Note& end = score.notes.at(hold.end);
-
-			if (isNoteInCanvas(start.tick)) updateNote(start);
-			if (isNoteInCanvas(end.tick)) updateNote(end);
-
-			for (const auto& step : hold.steps)
-			{
-				Note& mid = score.notes.at(step.ID);
-				if (isNoteInCanvas(mid.tick)) updateNote(mid);
-
-				if (skipUpdateAfterSortingSteps)
-				{
-					skipUpdateAfterSortingSteps = false;
-					break;
-				}
-			}
-
-			drawHoldNote(score.notes, hold, renderer, noteTint);
-		}
-
-		renderer->endBatch();
 #ifdef _DEBUG
-		if (showRenderStats)
-		{
-			ImVec2 statPos = canvasPos;
-			statPos.x += 10;
-			statPos.y += 5;
+				ImGui::MenuItem("ImGui Demo Window", NULL, &showImGuiDemoWindow);
+#endif
 
-			std::string vertexCount = "Vertices: " + std::to_string(renderer->getNumVertices());
-			drawList->AddText(statPos, 0xffffffff, vertexCount.c_str());
+				if (ImGui::MenuItem("Auto Save"))
+					autoSave();
 
-			statPos.y += ImGui::GetFontSize();
+				if (ImGui::MenuItem("Delete Old Auto Save (1)"))
+					deleteOldAutoSave(1);
 
-			std::string QuadCount = "Quads: " + std::to_string(renderer->getNumQuads());
-			drawList->AddText(statPos, 0xffffffff, QuadCount.c_str());
+				if (ImGui::MenuItem("Delete Old Auto Save (Max)"))
+					deleteOldAutoSave(config.autoSaveMaxCount);
 
+				bool audioRunning = context.audio.isEngineStarted();
+				if (ImGui::MenuItem(audioRunning ? "Stop Audio" : "Start Audio",
+					audioRunning ? ICON_FA_VOLUME_UP : ICON_FA_VOLUME_MUTE))
+				{
+					if (audioRunning)
+						context.audio.stopEngine();
+					else
+						context.audio.startEngine();
+				}
+
+				ImGui::EndMenu();
+			}
 		}
-#endif // DEBUG
 
-		renderer->beginBatch();
+		if (ImGui::BeginMenu(getString("window")))
+		{
+			if (ImGui::MenuItem(getString("vsync"), NULL, &Application::windowState.vsync))
+				glfwSwapInterval(Application::windowState.vsync);
 
-		if (isPasting() || insertingPreset && mouseInTimeline)
-			previewPaste(renderer);
+			ImGui::MenuItem(getString("show_fps"), NULL, &config.showFPS);
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu(getString("help")))
+		{
+			if (ImGui::MenuItem(getString("help"), ToShortcutString(config.input.openHelp)))
+				help();
+
+			if (ImGui::MenuItem(getString("about")))
+				aboutDialog.open = true;
+
+			ImGui::EndMenu();
+		}
+
+		if (config.showFPS)
+		{
+			std::string fps = IO::formatString("%.3fms (%.1fFPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			ImGui::SetCursorPosX(ImGui::GetWindowSize().x - ImGui::CalcTextSize(fps.c_str()).x - ImGui::GetStyle().WindowPadding.x);
+			ImGui::Text(fps.c_str());
+		}
+
+		ImGui::PopStyleVar();
+		ImGui::EndMainMenuBar();
+	}
+
+	void ScoreEditor::drawToolbar()
+	{
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImVec2 toolbarSize{ viewport->WorkSize.x, UI::toolbarBtnSize.y + ImGui::GetStyle().WindowPadding.y + 5 };
+
+		// keep toolbar on top in main viewport
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::SetNextWindowPos(viewport->WorkPos);
+		ImGui::SetNextWindowSize(toolbarSize, ImGuiCond_Always);
+
+		// toolbar style
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+		ImGui::PushStyleColor(ImGuiCol_Separator, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		ImGui::Begin("##app_toolbar", NULL, ImGuiWindowFlags_Toolbar);
 		
-		// input note preview
-		if (mouseInTimeline && !isHoldingNote && currentMode != TimelineMode::Select && !isPasting() && !insertingPreset && !UI::isAnyPopupOpen())
+		if (UI::toolbarButton(ICON_FA_FILE, getString("new"), ToShortcutString(config.input.create)))
 		{
-			// preview note
-			updateDummyNotes();
-			if (currentMode == TimelineMode::InsertLong)
-			{
-				drawDummyHold(renderer);
-			}
-			else if (currentMode == TimelineMode::InsertLongMid)
-			{
-				drawHoldMid(dummyMid, HoldStepType::Visible, renderer, hoverTint);
-			}
-			else if (currentMode == TimelineMode::InsertBPM)
-			{
-				const float x1 = canvasPos.x + laneOffset;
-				const float x2 = x1 + timelineWidth;
-				const float y = canvasPos.y - tickToPosition(hoverTick) + timelineOffset;
-				drawList->AddLine(ImVec2(x1, y), ImVec2(x2 + MEASURE_WIDTH, y), tempoColor, 2.0f);
-				drawList->AddText(ImGui::GetFont(), 24.0f, ImVec2(x2 + 20.0f, y - 25.0f), tempoColor, "BPM");
-			}
-			else if (currentMode == TimelineMode::InsertTimeSign)
-			{
-				const float x1 = canvasPos.x + laneOffset;
-				const float x2 = x1 + timelineWidth;
-				const float y = canvasPos.y - tickToPosition(hoverTick) + timelineOffset;
-				drawList->AddLine(ImVec2(x1 - MEASURE_WIDTH - (ImGui::CalcTextSize("4/4").x * 0.5f), y), ImVec2(x2, y), timeColor, 2.0f);
-				drawList->AddText(ImGui::GetFont(), 24.0f, ImVec2(x1 - 40.0f, y - 25.0f), timeColor, "4/4");
-			}
-			else
-			{
-				drawNote(dummy, renderer, hoverTint);
-			}
-
-			// input note
-			if (ImGui::IsMouseClicked(0) && hoverTick >= 0 && !isHoveringNote)
-			{
-				if (currentMode == TimelineMode::InsertLong)
-				{
-					insertingHold = true;
-				}
-				else if (currentMode == TimelineMode::InsertLongMid)
-				{
-					int id = findClosestHold();
-					if (id != -1)
-						insertHoldStep(score.holdNotes.at(id));
-				}
-				else if (currentMode == TimelineMode::InsertBPM)
-				{
-					insertTempo();
-				}
-				else if (currentMode == TimelineMode::InsertTimeSign)
-				{
-					insertTimeSignature();
-				}
-				else
-				{
-					insertNote(currentMode == TimelineMode::MakeCritical);
-				}
-			}
-
-			if (insertingHold)
-			{
-				if (ImGui::IsMouseDown(0))
-					updateDummyHold();
-				else
-				{
-					insertHoldNote();
-					insertingHold = false;
-				}
-			}
-		}
-		else
-		{
-			insertingHold = false;
+			Application::windowState.resetting = true;
 		}
 
-		renderer->endBatch();
-		drawSelectionBoxes(renderer);
-
-		glDisable(GL_DEPTH_TEST);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		unsigned int fbTex = framebuffer->getTexture();
-		drawList->AddImage((void*)fbTex, canvasPos, canvasPos + canvasSize);
-	}
-
-	void ScoreEditor::updateDummyNotes()
-	{
-		dummy.lane = laneFromCenterPos(hoverLane, defaultNoteWidth);
-		dummy.tick = hoverTick;
-		dummy.width = defaultNoteWidth;
-		dummyMid.lane = dummy.lane;
-		dummyMid.tick = dummy.tick;
-		dummyMid.width = dummy.width;
-		if (!insertingHold)
+		if (UI::toolbarButton(ICON_FA_FOLDER_OPEN, getString("open"), ToShortcutString(config.input.open)))
 		{
-			dummyStart.lane = dummyEnd.lane = dummy.lane;
-			dummyStart.width = dummyEnd.width = dummy.width;
-			dummyStart.tick = dummyEnd.tick = dummy.tick;
+			Application::windowState.resetting = true;
+			Application::windowState.shouldPickScore = true;
 		}
-	}
 
-	void ScoreEditor::updateDummyHold()
-	{
-		dummyEnd.lane = laneFromCenterPos(hoverLane, dummyEnd.width);
-		dummyEnd.tick = hoverTick;
-	}
+		if (UI::toolbarButton(ICON_FA_SAVE, getString("save"), ToShortcutString(config.input.save)))
+			trySave(context.workingData.filename);
 
-	void ScoreEditor::changeMode(TimelineMode mode)
-	{
-		currentMode = mode;
-		switch (currentMode)
+		if (UI::toolbarButton(ICON_FA_FILE_EXPORT, getString("export"), ToShortcutString(config.input.exportScore)))
+			exportScore();
+
+		UI::toolbarSeparator();
+
+		if (UI::toolbarButton(ICON_FA_CUT, getString("cut"), ToShortcutString(config.input.cutSelection), context.selectedNotes.size() > 0))
+			context.cutSelection();
+
+		if (UI::toolbarButton(ICON_FA_COPY, getString("copy"), ToShortcutString(config.input.copySelection), context.selectedNotes.size() > 0))
+			context.copySelection();
+
+		if (UI::toolbarButton(ICON_FA_PASTE, getString("paste"), ToShortcutString(config.input.paste)))
+			context.paste(false);
+
+		UI::toolbarSeparator();
+
+		if (UI::toolbarButton(ICON_FA_UNDO, getString("undo"), ToShortcutString(config.input.undo), context.history.hasUndo()))
+			context.undo();
+
+		if (UI::toolbarButton(ICON_FA_REDO, getString("redo"), ToShortcutString(config.input.redo), context.history.hasRedo()))
+			context.redo();
+
+		UI::toolbarSeparator();
+
+		for (int i = 0; i < (int)TimelineMode::TimelineModeMax; ++i)
 		{
-		case TimelineMode::InsertTap:
-			dummy.flick = FlickType::None;
-			dummy.critical = false;
-			break;
+			std::string img{ IO::concat("timeline_tools", timelineModes[i], "_") };
+			int sprIndex = (int)timelineSprites[i];
+			if (i == (int)TimelineMode::InsertFlick)
+			{
+				img.append(IO::concat("", flickTypes[(int)edit.flickType], "_"));
+				sprIndex = (int)flickToolSprites[(int)edit.flickType - 1];
+			}
+			else if (i == (int)TimelineMode::InsertLongMid)
+			{
+				img.append(IO::concat("", stepTypes[(int)edit.stepType], "_"));
+				sprIndex = (int)stepToolSprites[(int)edit.stepType];
+			}
 
-		case TimelineMode::InsertFlick:
-			dummy.flick = FlickType::Up;
-			dummy.critical = false;
-			break;
-
-		case TimelineMode::MakeCritical:
-			dummy.flick = FlickType::None;
-			dummy.critical = true;
-			break;
-
-		default:
-			break;
+			if (UI::toolbarImageButton("timeline_tools", sprIndex, getString(timelineModes[i]), ToShortcutString(*timelineModeBindings[i]), true, (int)timeline.getMode() == i))
+				timeline.changeMode((TimelineMode)i, edit);
 		}
+
+		ImGui::PopStyleColor(3);
+		ImGui::PopStyleVar(2);
+		ImGui::End();
 	}
 
-	void ScoreEditor::drawSelectionRectangle()
+	void ScoreEditor::help()
 	{
-		float startX = std::min(canvasPos.x + dragStart.x, canvasPos.x + mousePos.x);
-		float endX = std::max(canvasPos.x + dragStart.x, canvasPos.x + mousePos.x);
-		float startY = std::min(canvasPos.y + dragStart.y, canvasPos.y + mousePos.y) + timelineOffset;
-		float endY = std::max(canvasPos.y + dragStart.y, canvasPos.y + mousePos.y) + timelineOffset;
+		ShellExecuteW(0, 0, L"https://github.com/crash5band/MikuMikuWorld/wiki", 0, 0, SW_SHOW);
+	}
+
+	void ScoreEditor::autoSave()
+	{
+		std::wstring wAutoSaveDir = IO::mbToWideStr(autoSavePath);
+		std::filesystem::create_directory(wAutoSaveDir);
+
+		context.score.metadata = context.workingData.toScoreMetadata();
+		NativeScoreSerializer().serialize(context.score, autoSavePath + "\\mmw_auto_save_" + Utilities::getCurrentDateTime() + MMWS_EXTENSION);
 		
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-		drawList->AddRectFilled(ImVec2(startX, startY), ImVec2(endX, endY), selectionColor1);
-
-		ImVec2 iconPos = ImVec2(canvasPos + dragStart);
-		iconPos.y += timelineOffset;
-		if (InputListener::isCtrlDown())
+		int mmwsCount = 0;
+		for (const auto& file : std::filesystem::directory_iterator(wAutoSaveDir))
 		{
-			drawList->AddText(ImGui::GetFont(), 12, iconPos, 0xdddddddd, ICON_FA_PLUS_CIRCLE);
+			std::string extension = file.path().extension().string();
+			std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+			mmwsCount += static_cast<int>(extension == MMWS_EXTENSION);
 		}
-		else if (InputListener::isAltDown())
+		
+		if (mmwsCount > config.autoSaveMaxCount)
+			deleteOldAutoSave(mmwsCount - config.autoSaveMaxCount);
+	}
+
+	int ScoreEditor::deleteOldAutoSave(int count)
+	{
+		std::wstring wAutoSaveDir = IO::mbToWideStr(autoSavePath);
+		if (!std::filesystem::exists(wAutoSaveDir))
+			return 0;
+
+		// get mmws files
+		using entry = std::filesystem::directory_entry;
+		std::vector<entry> deleteFiles;
+		for (const auto& file : std::filesystem::directory_iterator(wAutoSaveDir))
 		{
-			drawList->AddText(ImGui::GetFont(), 12, iconPos, 0xdddddddd, ICON_FA_MINUS_CIRCLE);
+			std::string extension = file.path().extension().string();
+			std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+			if (extension == MMWS_EXTENSION)
+				deleteFiles.push_back(file);
 		}
+
+		// sort files by modification date
+		std::sort(deleteFiles.begin(), deleteFiles.end(), [](const entry& f1, const entry& f2) {
+			return f1.last_write_time() < f2.last_write_time();
+		});
+
+		int deleteCount = std::min(static_cast<int>(deleteFiles.size()), count);
+		for (int i = 0; i < deleteCount; i++)
+			std::filesystem::remove(deleteFiles[i]);
+		
+		return deleteCount;
 	}
 
-	void ScoreEditor::drawSelectionBoxes(Renderer* renderer)
+	void ScoreEditor::loadPresets()
 	{
-		renderer->beginBatch();
-		for (const int& id : selectedNotes)
+		if (loadPresetsFuture.valid())
+			loadPresetsFuture.get();
+		
+		loadPresetsFuture = std::async(std::launch::async, [this]()
 		{
-			if (isNoteInCanvas(score.notes.at(id).tick))
-				drawHighlight(score.notes.at(id), renderer, noteTint, false);
-		}
-		renderer->endBatch();
+			presetsWindow.notifyPresetsLoading();
+			presetManager.loadPresets();
+			presetsWindow.notifyPresetsLoaded(presetManager);
+		});
 	}
 
-	bool ScoreEditor::isHoldPathInTick(const Note& n1, const Note& n2, EaseType ease, float x, float y)
+	void ScoreEditor::importPreset(const std::string& path)
 	{
-		float xStart1 = laneToPosition(n1.lane);
-		float xStart2 = laneToPosition(n1.lane + n1.width);
-		float xEnd1 = laneToPosition(n2.lane);
-		float xEnd2 = laneToPosition(n2.lane + n2.width);
-		float y1 = getNoteYPosFromTick(n1.tick);
-		float y2 = getNoteYPosFromTick(n2.tick);
+		if (importPresetFuture.valid())
+			importPresetFuture.get();
 
-		if (y > y2 || y < y1)
-			return false;
+		presetsWindow.notifyPresetsLoading();
+		importPresetFuture = std::async(std::launch::async, [this, path]()
+		{
+			Result result = presetManager.importPreset(path);
+			presetsWindow.notifyPresetsLoaded(presetManager);
 
-		float percent = (y - y1) / (y2 - y1);
-		float iPercent = ease == EaseType::None ? percent : ease == EaseType::EaseIn ? easeIn(percent) : easeOut(percent);
-		float xl = lerp(xStart1, xEnd1, iPercent);
-		float xr = lerp(xStart2, xEnd2, iPercent);
-
-		return isWithinRange(x, xl < xr ? xl : xr, xr > xl ? xr : xl);
+			if (result.getStatus() != ResultStatus::Success)
+			{
+				IO::MessageBoxIcon icon = result.getStatus() == ResultStatus::Error ?
+					IO::MessageBoxIcon::Error :
+					IO::MessageBoxIcon::Warning;
+			
+				IO::messageBox(APP_NAME, result.getMessage(), IO::MessageBoxButtons::Ok, icon, Application::windowState.windowHandle);
+			}
+		});
 	}
 
-	bool ScoreEditor::selectionHasEase()
+	void ScoreEditor::openImportPresetDialog()
 	{
-		for (const int id : selectedNotes)
-			if (score.notes[id].hasEase())
-				return true;
-
-		return false;
-	}
-
-	bool ScoreEditor::selectionHasHoldStep()
-	{
-		for (const int id : selectedNotes)
-			if (score.notes[id].getType() == NoteType::HoldMid)
-				return true;
-
-		return false;
-	}
-
-	void ScoreEditor::loadPresets(const std::string& path)
-	{
-		presetManager.loadPresets(path);
-	}
-
-	void ScoreEditor::savePresets(const std::string& path)
-	{
-		presetManager.savePresets(path);
-	}
-
-	std::string ScoreEditor::getWorkingFilename() const
-	{
-		return workingData.filename;
+		IO::FileDialog fileDialog{"Import Preset", { IO::presetFilter }, "", "", ".json", 0, Application::windowState.windowHandle};
+		if (fileDialog.openFile() == IO::FileDialogResult::OK)
+			importPreset(fileDialog.outputFilename);
 	}
 }

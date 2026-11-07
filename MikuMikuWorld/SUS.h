@@ -1,6 +1,7 @@
 #pragma once
-#include <unordered_map>
+#include <map>
 #include <vector>
+#include <string>
 
 namespace MikuMikuWorld
 {
@@ -31,21 +32,15 @@ namespace MikuMikuWorld
 		float length;
 	};
 
-	struct NoteMap
+	struct HiSpeed
 	{
-		struct RawData
-		{
-			int tick;
-			std::string data;
-		};
-
-		std::vector<RawData> data;
-		int ticksPerMeasure;
+		int tick;
+		float speed;
 	};
 
 	struct SUSMetadata
 	{
-		std::unordered_map<std::string, std::string> data;
+		std::map<std::string, std::string> data;
 		std::vector<std::string> requests;
 		float waveOffset;
 		float movieOffset;
@@ -55,18 +50,17 @@ namespace MikuMikuWorld
 			waveOffset{ 0 }, movieOffset{ 0 }, baseBPM{ 0 } {}
 	};
 
+	typedef std::vector<std::vector<SUSNote>> SUSNoteStream;
+
 	struct SUS
 	{
 		SUSMetadata metadata;
 		std::vector<SUSNote> taps;
 		std::vector<SUSNote> directionals;
-		std::vector<std::vector<SUSNote>> slides;
+		SUSNoteStream slides;
+		SUSNoteStream guides;
 		std::vector<BPM> bpms;
 		std::vector<BarLength> barlengths;
+		std::vector<HiSpeed> hiSpeeds;
 	};
-
-	SUSMetadata processSUSMetadata(const std::unordered_map<std::string, std::string>& data);
-	SUS processSusScore(const std::vector<std::string>& score, const std::unordered_map<std::string, std::string>& metadata);
-	SUS loadSUS(const std::string& filename);
-	void saveSUS(const SUS& sus, const std::string& filename);
 }

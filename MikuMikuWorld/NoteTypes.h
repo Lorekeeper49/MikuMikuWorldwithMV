@@ -14,44 +14,61 @@ namespace MikuMikuWorld
 	enum class FlickType : uint8_t
 	{
 		None,
-		Up,
+		Default,
 		Left,
-		Right
+		Right,
+		FlickTypeCount
 	};
 
 	constexpr const char* flickTypes[]
 	{
 		"none",
-		"up",
+		"default",
 		"left",
 		"right"
 	};
 
 	enum class HoldStepType : uint8_t
 	{
-		Visible,
-		Invisible,
-		Ignored
+		Normal,
+		Hidden,
+		Skip,
+		HoldStepTypeCount
 	};
 
 	constexpr const char* stepTypes[]
 	{
-		"visible",
-		"invisible",
-		"ignored"
+		"normal",
+		"hidden",
+		"skip"
 	};
 
 	enum class EaseType : uint8_t
 	{
-		None,
+		Linear,
 		EaseIn,
-		EaseOut
+		EaseOut,
+		EaseTypeCount
 	};
 
 	constexpr const char* easeTypes[]
 	{
-		"none",
-		"in",
-		"out"
+		"linear",
+		"ease_in",
+		"ease_out"
+	};
+
+	enum class HoldNoteType : uint8_t
+	{
+		Normal,
+		Hidden,
+		Guide
+	};
+
+	constexpr const char* holdTypes[]
+	{
+		"normal",
+		"hidden",
+		"guide"
 	};
 }

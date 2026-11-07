@@ -1,92 +1,81 @@
 #pragma once
-#include "../Depends/glad/include/glad/glad.h"
-#include "../Depends/GLFW/include/GLFW/glfw3.h"
-#include "ImGui/imgui_impl_glfw.h"
-#include "ImGui/imgui_impl_opengl3.h"
-#include "Rendering/Renderer.h"
+#define NOMINMAX
+#include <Windows.h>
+
+#define IMGUI_DEFINE_MATH_OPERATORS
+
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+
 #include "ScoreEditor.h"
-#include "Stopwatch.h"
-#include "ApplicationConfiguration.h"
+#include "ImGuiManager.h"
+
+LRESULT CALLBACK wndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 namespace MikuMikuWorld
 {
+	class Result;
+
+	struct WindowState
+	{
+		bool resetting = false;
+		bool vsync = true;
+		bool showPerformanceMetrics = false;
+		bool maximized = false;
+		bool closing = false;
+		bool shouldPickScore = false;
+		bool dragDropHandled = true;
+		bool windowDragging = false;
+		bool fullScreen = false;
+		void* windowHandle{ 0 };
+		Vector2 position{};
+		Vector2 size{};
+		UINT_PTR windowTimerId{};
+	};
+
 	class Application
 	{
 	private:
-		GLFWwindow* window;
-		Renderer* renderer;
-		ScoreEditor* editor;
-		float lastFrame;
-		float frameDelta;
-		float appFrame;
-		float appTime;
-		float lastAppTimeUpdate;
-		bool initialized;
-		bool firstFrame;
-		bool vsync;
-		bool showPerformanceMetrics;
-		bool aboutOpen;
-		bool settingsOpen;
-		bool unsavedOpen;
-		bool shouldPickScore;
-		bool autoSaveEnabled;
-		int autoSaveInterval; // in minutes
-		ApplicationConfiguration config;
+		GLFWwindow* window{ nullptr };
+		std::unique_ptr<ScoreEditor> editor;
+		std::unique_ptr<ImGuiManager> imgui;
+		UnsavedChangesDialog unsavedChangesDialog;
 
-		std::string pendingDropScoreFile;
-		std::string imguiConfigFile;
+		bool initialized{ false };
+		bool shouldPickScore{ false };
+		std::string language;
+
+		std::vector<std::string> pendingOpenFiles;
+
 		static std::string version;
 		static std::string appDir;
 
-		ImGuiID dockspaceID;
-		Stopwatch stopwatch;
-		Stopwatch autoSaveTimer;
-
-		void initLayout();
-		bool initOpenGL();
-		bool initImgui();
-		void setImguiStyle();
-		void update();
-		void updateDialogs();
-		void installCallbacks();
-
-		static void frameBufferResizeCallback(GLFWwindow* window, int width, int height);
-		static void windowCloseCallback(GLFWwindow* window);
-		static void dropCallback(GLFWwindow* window, int count, const char** paths);
-		static void windowSizeCallback(GLFWwindow* window, int width, int height);
-		static void windowPositionCallback(GLFWwindow* window, int x, int y);
-		static void windowMaximizeCallback(GLFWwindow* window, int maximized);
-
+		Result initOpenGL();
 		std::string getVersion();
 
 	public:
-		static std::vector<std::string> pendingOpenFiles;
-		static bool dragDropHandled;
-		static bool exiting;
-		static bool resetting;
-		static bool maximized;
-		static Vector2 windowPos;
-		static Vector2 windowSize;
+		static WindowState windowState;
+		static std::string pendingLoadScoreFile;
 
-		Application(const std::string &rootPath);
+		Application();
 
-		void initialize();
-		void reset();
-		void open();
+		Result initialize(const std::string& root);
 		void run();
-		void frameTime();
-		void menuBar();
-		bool warnUnsaved();
-		void about();
-		void settingsDialog();
-		void processInput();
-		void applyAccentColor(int col);
+		void update();
+		void appendOpenFile(const std::string& filename);
 		void handlePendingOpenFiles();
 		void readSettings();
 		void writeSettings();
-		void autoSave();
 		void loadResources();
 		void dispose();
+		void setFullScreen(bool fullScreen);
+		bool attemptSave();
+		bool isEditorUpToDate() const;
+
+		GLFWwindow* getGlfwWindow() { return window; }
 
 		static const std::string& getAppDir();
 		static const std::string& getAppVersion();

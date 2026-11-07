@@ -1,8 +1,9 @@
 #pragma once
+#include <stdint.h>
 
 namespace MikuMikuWorld
 {
-	enum class TimelineMode
+	enum class TimelineMode : uint8_t
 	{
 		Select,
 		InsertTap,
@@ -10,40 +11,67 @@ namespace MikuMikuWorld
 		InsertLongMid,
 		InsertFlick,
 		MakeCritical,
+		MakeFriction,
+		InsertGuide,
 		InsertBPM,
 		InsertTimeSign,
-		TimelineToolMax
-	};
-
-	enum class ScrollMode
-	{
-		None,
-		Page,
-		Smooth,
-		ScrollModeMax
+		InsertHiSpeed,
+		TimelineModeMax
 	};
 
 	constexpr const char* timelineModes[]
 	{
-		"Select",
-		"Tap",
-		"Hold",
-		"Hold Step",
-		"Flick",
-		"Critical",
-		"BPM",
-		"Time Signature"
-	};
-
-	constexpr const char* scrollModes[]
-	{
-		"None",
-		"Page",
-		"Smooth"
+		"select",
+		"tap",
+		"hold",
+		"hold_step",
+		"flick",
+		"critical",
+		"trace",
+		"guide",
+		"bpm",
+		"time_signature",
+		"hi_speed"
 	};
 
 	constexpr int divisions[]
 	{
-		4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, -1
+		4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192
+	};
+
+	constexpr int timeSignatureDenominators[]
+	{
+		2, 4, 8, 16, 32, 64
+	};
+
+	enum class EventType : uint8_t
+	{
+		None,
+		Bpm,
+		TimeSignature,
+		HiSpeed,
+		Skill,
+		Cheer,
+		Fever,
+		EventTypeMax
+	};
+
+	constexpr const char* eventTypes[]
+	{
+		"none",
+		"bpm",
+		"time_signature",
+		"hi_speed",
+		"skill",
+		"cheer",
+		"fever",
+		"event"
+	};
+
+	enum class Direction : uint8_t
+	{
+		Down,
+		Up,
+		DirectionMax
 	};
 }

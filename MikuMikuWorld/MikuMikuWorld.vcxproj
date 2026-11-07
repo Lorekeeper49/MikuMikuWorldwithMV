@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -79,7 +79,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <SourcePath>C:\Data\Repositories\MikuMikuWorld\MikuMikuWorld\Depends\ImGui;C:\Data\Repositories\MikuMikuWorld\MikuMikuWorld\Depends\glad\src;$(SourcePath)</SourcePath>
+    <SourcePath>$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -119,17 +119,18 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_ENABLE_EXTENDED_ALIGNED_STORAGE;_DEBUG</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>../Depends/DirectXMath-master;../Depends/glad/include;../Depends/GLFW/include;../Depends/stb_image;../Depends/miniaudio;../Depends/json</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Depends/DirectXMath-master;../Depends/glad/include;../Depends/GLFW/include;../Depends/stb_image;../Depends/miniaudio;../Depends/json;../Depends/stb_vorbis;../Depends/zlib/include;../Depends/ffmpeg/include</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)</ObjectFileName>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>glfw3.lib;opengl32.lib;Version.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>../Depends/GLFW/$(Configuration)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;zlibstatic.lib;opengl32.lib;Version.lib;Dwmapi.lib;avcodec.lib;avformat.lib;avutil.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../Depends/GLFW/lib;../Depends/zlib/lib;../Depends/libzip/lib;../Depends/ffmpeg/lib</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "$(ProjectDir)res\" "$(OutDir)res\" /E /Y</Command>
+      <Command>xcopy "$(ProjectDir)res\" "$(OutDir)res\" /E /Y
+xcopy "$(ProjectDir)..\Depends\ffmpeg\dll\*.dll" "$(OutDir)" /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -141,87 +142,122 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_ENABLE_EXTENDED_ALIGNED_STORAGE;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>../Depends/DirectXMath-master;../Depends/glad/include;../Depends/GLFW/include;../Depends/stb_image;../Depends/miniaudio;../Depends/json</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Depends/DirectXMath-master;../Depends/glad/include;../Depends/GLFW/include;../Depends/stb_image;../Depends/miniaudio;../Depends/json;../Depends/stb_vorbis;../Depends/zlib/include;../Depends/ffmpeg/include</AdditionalIncludeDirectories>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <ObjectFileName>$(IntDir)</ObjectFileName>
+      <Optimization>MaxSpeed</Optimization>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\Depends\GLFW\$(Configuration)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glfw3.lib;opengl32.lib;Version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../Depends/GLFW/lib;../Depends/zlib/lib;../Depends/libzip/lib;../Depends/ffmpeg/lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;zlibstatic.lib;opengl32.lib;Version.lib;Dwmapi.lib;avcodec.lib;avformat.lib;avutil.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
+      <AdditionalManifestDependencies>type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'</AdditionalManifestDependencies>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "$(ProjectDir)res\" "$(OutDir)res\" /E /Y</Command>
+      <Command>xcopy "$(ProjectDir)res\" "$(OutDir)res\" /E /Y
+xcopy "$(ProjectDir)..\Depends\ffmpeg\dll\*.dll" "$(OutDir)" /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Depends\glad\src\glad.c" />
+    <ClCompile Include="..\Depends\stb_vorbis\stb_vorbis.c" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="ApplicationConfiguration.cpp" />
-    <ClCompile Include="Audio\AudioEvent.cpp" />
+    <ClCompile Include="Audio\Sound.cpp" />
     <ClCompile Include="Audio\AudioManager.cpp" />
-    <ClCompile Include="Audio\stb_vorbis.c" />
+    <ClCompile Include="Background.cpp" />
     <ClCompile Include="BinaryReader.cpp" />
     <ClCompile Include="BinaryWriter.cpp" />
-    <ClCompile Include="Dialogs.cpp" />
-    <ClCompile Include="Editing.cpp" />
-    <ClCompile Include="EditorWindows.cpp" />
+    <ClCompile Include="Clipboard.cpp" />
+    <ClCompile Include="DebugEffectView.cpp" />
+    <ClCompile Include="EffectView.cpp" />
     <ClCompile Include="File.cpp" />
-    <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="HistoryManager.cpp" />
+    <ClCompile Include="ImGuiManager.cpp" />
     <ClCompile Include="ImGui\imgui.cpp" />
+    <ClCompile Include="ImGui\imgui_demo.cpp" />
     <ClCompile Include="ImGui\imgui_draw.cpp" />
     <ClCompile Include="ImGui\imgui_impl_glfw.cpp" />
     <ClCompile Include="ImGui\imgui_impl_opengl3.cpp" />
     <ClCompile Include="ImGui\imgui_stdlib.cpp" />
     <ClCompile Include="ImGui\imgui_tables.cpp" />
     <ClCompile Include="ImGui\imgui_widgets.cpp" />
-    <ClCompile Include="InputListener.cpp" />
+    <ClCompile Include="InputBinding.cpp" />
+    <ClCompile Include="IO.cpp" />
+    <ClCompile Include="Jacket.cpp" />
+    <ClCompile Include="MusicVideo.cpp" />
+    <ClCompile Include="SubtitleOverlay.cpp" />
+    <ClCompile Include="VideoDecoder.cpp">
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Include="Subtitles.cpp" />
+    <ClCompile Include="JsonIO.cpp" />
+    <ClCompile Include="Language.cpp" />
+    <ClCompile Include="Localization.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Math.cpp" />
+    <ClCompile Include="MinMax.cpp" />
+    <ClCompile Include="NativeScoreSerializer.cpp" />
     <ClCompile Include="Note.cpp" />
+    <ClCompile Include="NotesFilter.cpp" />
+    <ClCompile Include="AggregateNotesFilter.cpp" />
+    <ClCompile Include="NoteSkin.cpp" />
     <ClCompile Include="OpenGlLoader.cpp" />
-    <ClCompile Include="Preset.cpp" />
-    <ClCompile Include="PresetManager.cpp" />
+    <ClCompile Include="NotesPreset.cpp" />
+    <ClCompile Include="Particle.cpp" />
+    <ClCompile Include="PreviewData.cpp" />
+    <ClCompile Include="PreviewEngine.cpp" />
     <ClCompile Include="Rendering\Camera.cpp" />
     <ClCompile Include="Rendering\Framebuffer.cpp" />
     <ClCompile Include="Rendering\Renderer.cpp" />
     <ClCompile Include="Rendering\Shader.cpp" />
-    <ClCompile Include="Rendering\Sprite.cpp" />
     <ClCompile Include="Rendering\Texture.cpp" />
-    <ClCompile Include="Rendering\VertexBuffer.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="Score.cpp" />
+    <ClCompile Include="ScoreContext.cpp" />
+    <ClCompile Include="ScoreEditorTimeline.cpp" />
+    <ClCompile Include="ScoreEditorWindows.cpp" />
+    <ClCompile Include="ScorePreview.cpp" />
+    <ClCompile Include="ScoreSerializeWindow.cpp" />
+    <ClCompile Include="ScoreSerializer.cpp" />
     <ClCompile Include="ScoreStats.cpp" />
+    <ClCompile Include="Sonolus.cpp" />
+    <ClCompile Include="SonolusSerializer.cpp" />
     <ClCompile Include="Stopwatch.cpp" />
-    <ClCompile Include="StringOperations.cpp" />
-    <ClCompile Include="SUS.cpp" />
-    <ClCompile Include="SUSIO.cpp" />
+    <ClCompile Include="SusExporter.cpp" />
+    <ClCompile Include="SusParser.cpp" />
+    <ClCompile Include="SusSerializer.cpp" />
     <ClCompile Include="Tempo.cpp" />
     <ClCompile Include="ScoreEditor.cpp" />
-    <ClCompile Include="TimelineNotes.cpp" />
     <ClCompile Include="UI.cpp" />
     <ClCompile Include="Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
     <ClInclude Include="ApplicationConfiguration.h" />
-    <ClInclude Include="Audio\AudioEvent.h" />
+    <ClInclude Include="Audio\Sound.h" />
     <ClInclude Include="Audio\AudioManager.h" />
+    <ClInclude Include="Background.h" />
     <ClInclude Include="BinaryReader.h" />
     <ClInclude Include="BinaryWriter.h" />
-    <ClInclude Include="ChannelProvider.h" />
+    <ClInclude Include="Clipboard.h" />
+    <ClInclude Include="DebugEffectView.h" />
+    <ClInclude Include="EffectView.h" />
+    <ClInclude Include="MinMax.h" />
     <ClInclude Include="Colors.h" />
     <ClInclude Include="Constants.h" />
-    <ClInclude Include="EditorScoreData.h" />
+    <ClInclude Include="DefaultLanguage.h" />
     <ClInclude Include="File.h" />
-    <ClInclude Include="FileDialog.h" />
     <ClInclude Include="HistoryManager.h" />
     <ClInclude Include="IconsFontAwesome5.h" />
+    <ClInclude Include="ImageCrop.h" />
+    <ClInclude Include="ImGuiManager.h" />
     <ClInclude Include="ImGui\imconfig.h" />
     <ClInclude Include="ImGui\imgui.h" />
     <ClInclude Include="ImGui\imgui_impl_glfw.h" />
@@ -231,13 +267,32 @@
     <ClInclude Include="ImGui\imstb_rectpack.h" />
     <ClInclude Include="ImGui\imstb_textedit.h" />
     <ClInclude Include="ImGui\imstb_truetype.h" />
-    <ClInclude Include="InputListener.h" />
+    <ClInclude Include="InputBinding.h" />
+    <ClInclude Include="IO.h" />
+    <ClInclude Include="NoteSkin.h" />
+    <ClInclude Include="Particle.h" />
+    <ClInclude Include="PreviewData.h" />
+    <ClInclude Include="PreviewEngine.h" />
+    <ClInclude Include="ScorePreview.h" />
+    <ClInclude Include="ScoreSerializeWindow.h" />
+    <ClInclude Include="ScoreSerializer.h" />
+    <ClInclude Include="Jacket.h" />
+    <ClInclude Include="MusicVideo.h" />
+    <ClInclude Include="SubtitleOverlay.h" />
+    <ClInclude Include="VideoDecoder.h" />
+    <ClInclude Include="Subtitles.h" />
+    <ClInclude Include="JsonIO.h" />
+    <ClInclude Include="Language.h" />
+    <ClInclude Include="Localization.h" />
     <ClInclude Include="Math.h" />
     <ClInclude Include="Audio\miniaudio.h" />
+    <ClInclude Include="NativeScoreSerializer.h" />
     <ClInclude Include="Note.h" />
+    <ClInclude Include="NotesFilter.h" />
+    <ClInclude Include="AggregateNotesFilter.h" />
     <ClInclude Include="NoteTypes.h" />
-    <ClInclude Include="Preset.h" />
-    <ClInclude Include="PresetManager.h" />
+    <ClInclude Include="NotesPreset.h" />
+    <ClInclude Include="RenderDebugStats.h" />
     <ClInclude Include="Rendering\AnchorType.h" />
     <ClInclude Include="Rendering\Camera.h" />
     <ClInclude Include="Rendering\Framebuffer.h" />
@@ -246,28 +301,36 @@
     <ClInclude Include="Rendering\Shader.h" />
     <ClInclude Include="Rendering\Sprite.h" />
     <ClInclude Include="Rendering\Texture.h" />
-    <ClInclude Include="Rendering\Vertex.h" />
     <ClInclude Include="Rendering\VertexBuffer.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="Score.h" />
+    <ClInclude Include="ScoreContext.h" />
+    <ClInclude Include="ScoreEditorTimeline.h" />
+    <ClInclude Include="ScoreEditorWindows.h" />
     <ClInclude Include="ScoreStats.h" />
+    <ClInclude Include="Sonolus.h" />
+    <ClInclude Include="SonolusSerializer.h" />
     <ClInclude Include="Stopwatch.h" />
-    <ClInclude Include="StringOperations.h" />
     <ClInclude Include="SUS.h" />
-    <ClInclude Include="SUSIO.h" />
+    <ClInclude Include="SusExporter.h" />
+    <ClInclude Include="SusParser.h" />
+    <ClInclude Include="SusSerializer.h" />
     <ClInclude Include="Tempo.h" />
     <ClInclude Include="ScoreEditor.h" />
     <ClInclude Include="TimelineMode.h" />
     <ClInclude Include="UI.h" />
     <ClInclude Include="Utilities.h" />
-    <ClInclude Include="ZIndex.h" />
+    <ClInclude Include="Audio\Waveform.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="mmw_icon.ico" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MikuMikuWorld.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Rendering\VertexBuffer.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

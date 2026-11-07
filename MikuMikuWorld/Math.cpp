@@ -7,14 +7,34 @@ namespace MikuMikuWorld
 		return start + percentage * (end - start);
 	}
 
-	float easeIn(float x)
+	float unlerp(float start, float end, float value)
 	{
-		return x * x;
+		return (value - start) / (end - start);
 	}
 
-	float easeOut(float x)
+	double lerpD(double start, double end, double percentage)
 	{
-		return 1 - (1 - x) * (1 - x);
+		return start + percentage * (end - start);
+	}
+
+	double unlerpD(double start, double end, double value)
+	{
+		return (value - start) / (end - start);
+	}
+
+	float easeIn(float start, float end, float ratio)
+	{
+		return lerp(start, end, ratio * ratio);
+	}
+
+	float easeOut(float start, float end, float ratio)
+	{
+		return lerp(start, end, 1 - (1 - ratio) * (1 - ratio));
+	}
+
+	float midpoint(float x1, float x2)
+	{
+		return (x1 + x2) * 0.5f;
 	}
 
 	bool isWithinRange(float x, float left, float right)
@@ -22,33 +42,40 @@ namespace MikuMikuWorld
 		return x >= left && x <= right;
 	}
 
-	Rectangle::Rectangle(Vector2 start, Vector2 end) :
-		x1{ start.x }, y1{ start.y }, x2{ end.x }, y2{ end.y }
+	std::function<float(float, float, float)> getEaseFunction(EaseType ease)
 	{
+		switch (ease)
+		{
+		case EaseType::EaseIn:
+			return easeIn;
+		case EaseType::EaseOut:
+			return easeOut;
+		default:
+			break;
+		}
+
+		return lerp;
 	}
 
-	Rectangle::Rectangle(float x, float y, float w, float h) :
-		x1{ x }, y1{ y }, x2{ x + w }, y2{ y + h }
+	uint32_t gcf(uint32_t a, uint32_t b)
 	{
+		for (;;)
+		{
+			if (b == 0)
+			{
+				break;
+			}
+			else
+			{
+				uint32_t t = a;
+				a = b;
+				b = t % a;
+			}
+		}
+
+		return a;
 	}
 
-	inline float Rectangle::getWidth() const
-	{
-		return x2 - x1;
-	}
-
-	inline float Rectangle::getHeight() const
-	{
-		return y2 - y1;
-	}
-
-	bool Rectangle::intersects(const Vector2& p) const
-	{
-		return intersects(p.x, p.y);
-	}
-
-	bool Rectangle::intersects(float x, float y) const
-	{
-		return isWithinRange(x, x1, x2) && isWithinRange(y, y1, y2);
-	}
+	float easeInCubic(float x) { return x * x * x; }
+	float easeOutCubic(float x) { return 3 * x - 3 * x * x + x * x * x; }
 }

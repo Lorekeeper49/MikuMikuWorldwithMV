@@ -1,44 +1,48 @@
 #pragma once
+
+#define IMGUI_DEFINE_MATH_OPERATORS
+
 #include "ImGui/imgui.h"
-#include "ImGui/imgui_stdlib.h"
-#include "ImGui/imgui_internal.h"
 #include "IconsFontAwesome5.h"
+#include "Localization.h"
+#include "NoteTypes.h"
+#include "IO.h"
 #include <vector>
 
 #define APP_NAME "MikuMikuWorld"
-#define APP_NAME_FRIENDLY "Miku Miku World"
+
+#define IMGUI_TITLE(icon, title) IO::formatString("%s %s###%s", icon, getString(title), title).c_str()
+#define MODAL_TITLE(title) IO::formatString("%s - %s###%s", APP_NAME, getString(title), title).c_str()
 
 namespace MikuMikuWorld
 {
-	constexpr const char* toolboxWindow = ICON_FA_TOOLBOX " Toolbox";
-	constexpr const char* controlsWindow = ICON_FA_ADJUST " Controls";
-	constexpr const char* timelineWindow = ICON_FA_MUSIC " Notes Timeline";
-	constexpr const char* detailsWindow = ICON_FA_ALIGN_LEFT " Chart Properties";
-	constexpr const char* presetsWindow = ICON_FA_DRAFTING_COMPASS " Presets";
-	constexpr const char* debugWindow = ICON_FA_BUG " Debug";
-	constexpr const char* windowTitle = " - " APP_NAME;
 	constexpr const char* windowUntitled = "Untitled";
-	constexpr const char* aboutModalTitle = "About - " APP_NAME_FRIENDLY;
-	constexpr const char* settingsModalTitle = "Settings - " APP_NAME_FRIENDLY;
-	constexpr const char* unsavedModalTitle = "Unsaved Changes - " APP_NAME_FRIENDLY;
 
-	constexpr float primaryLineThickness = 0.50f;
-	constexpr float secondaryLineThickness = 0.25f;
+	constexpr float primaryLineThickness = 0.250f;
+	constexpr float secondaryLineThickness = 0.150f;
 	constexpr float toolTipDelay = 0.5f;
 
 	constexpr ImGuiWindowFlags ImGuiWindowFlags_Static = ImGuiWindowFlags_NoCollapse;
+	constexpr ImGuiWindowFlags ImGuiWindowFlags_Toolbar = ImGuiWindowFlags_NoCollapse
+		| ImGuiWindowFlags_NoDocking
+		| ImGuiWindowFlags_NoMove
+		| ImGuiWindowFlags_NoResize
+		| ImGuiWindowFlags_NoScrollbar
+		| ImGuiWindowFlags_NoScrollWithMouse
+		| ImGuiWindowFlags_NoTitleBar;
 
-	struct AccentColor
-	{
-		std::string name;
-		ImVec4 color;
-	};
-
-	enum class ColorDisplay
+	enum class ColorDisplay : uint8_t
 	{
 		RGB,
 		HSV,
 		HEX
+	};
+
+	enum class BaseTheme : uint8_t
+	{
+		DARK,
+		LIGHT,
+		BASE_THEME_MAX
 	};
 
 	constexpr const char* colorDisplayStr[]
@@ -46,32 +50,91 @@ namespace MikuMikuWorld
 		"RGB", "HSV", "Hex"
 	};
 
+	constexpr const char* baseThemes[]
+	{
+		"theme_dark", "theme_light"
+	};
+
 	class UI
 	{
+	private:
+		static char idStr[256];
+		static const ImVec2 _btnNormal;
+		static const ImVec2 _btnSmall;
+		static const ImVec2 _toolbarBtnSize;
+		static const ImVec2 _toolbarBtnImgSize;
+
 	public:
-		static const ImVec2 btnNormal;
-		static const ImVec2 btnSmall;
-		static std::vector<AccentColor> accentColors;
+		static ImVec2 btnNormal;
+		static ImVec2 btnSmall;
+		static ImVec2 toolbarBtnSize;
+		static ImVec2 toolbarBtnImgSize;
+		static std::vector<ImVec4> accentColors;
 
 		static bool transparentButton(const char* txt, ImVec2 size = btnNormal, bool repeat = false, bool enabled = true);
 		static bool transparentButton2(const char* txt, ImVec2 pos, ImVec2 size);
+		static bool coloredButton(const char* txt, ImVec2 pos, ImVec2 size, ImU32 col, bool enabled = true);
 		static bool isAnyPopupOpen();
 		static void beginPropertyColumns();
 		static void endPropertyColumns();
 		static void propertyLabel(const char* label);
-		static void addStringProperty(const char* label, std::string& val);
 		static void addIntProperty(const char* label, int& val, int lowerBound = 0, int higherBound = 0);
+		static void addIntProperty(const char* label, int& val, const char* format, int lowerBound = 0, int higherBound = 0);
 		static void addFloatProperty(const char* label, float& val, const char* format);
-		static void addReadOnlyProperty(const char* label, std::string val);
+		static void addNumericStringProperty(const char* label, std::string& val, bool button = true);
+		static void addStringProperty(const char* label, std::string& val);
 		static void addSliderProperty(const char* label, int& val, int min, int max, const char* format);
 		static void addSliderProperty(const char* label, float& val, float min, float max, const char* format);
+		static void addDragFloatProperty(const char* label, float& val, const char* format);
 		static void addPercentSliderProperty(const char* label, float& val);
 		static bool addFractionProperty(const char* label, int& numerator, int& denominator);
+		static void addCheckboxProperty(const char* label, bool& val);
 		static int addFileProperty(const char* label, std::string& val);
 		static void addMultilineString(const char* label, std::string& val);
 		static void tooltip(const char* label);
+		static const char* labelID(const char* label);
+		static bool divisionSelect(const char* label, int& value, const int* items, size_t count);
+		static bool zoomControl(const char* label, float& value, float min, float max, float width);
+		static bool timeSignatureSelect(int& numerator, int& denominator);
+		static bool toolbarButton(const char* icon, const char* label, const char* shortcut, bool enabled = true, bool selected = false);
+		static bool toolbarImageButton(const char* img, const char* label, const char* shortcut, bool enabled = true, bool selected = false);
+		static bool toolbarImageButton(const char* img, int spr, const char* label, const char* shortcut, bool enabled = true, bool selected = false);
+		static void toolbarSeparator();
 
-		static void setWindowTitle(const std::string& title);
+		static void setWindowTitle(std::string title);
+
+		/// <summary>
+		/// Querys whether the system is set to dark mode
+		/// </summary>
+		/// <returns>true if dark mode is enabled; Otherwise false</returns>
+		static bool isSystemDarkMode();
+
+		/// <summary>
+		/// Sets whether immersive dark color (windows dark theme) is enabled or not
+		/// </summary>
+		/// <param name="enabled">Whether dark mode should be enabled</param>
+		static void setDarkMode(bool enabled);
+		static void updateBtnSizesDpiScaling(float scale);
+
+		template <typename T>
+		static void addReadOnlyProperty(const char* label, T val)
+		{
+			propertyLabel(label);
+			ImGui::Text(std::to_string(val).c_str());
+			ImGui::NextColumn();
+		}
+
+		static void addReadOnlyProperty(const char* label, const char* val)
+		{
+			propertyLabel(label);
+			ImGui::Text(val);
+			ImGui::NextColumn();
+		}
+
+		inline static void addReadOnlyProperty(const char* label, const std::string& val)
+		{
+			addReadOnlyProperty(label, val.c_str());
+		}
 
 		/// <summary>
 		/// For use with sequential enums only
@@ -84,12 +147,20 @@ namespace MikuMikuWorld
 			std::string id("##");
 			id.append(label);
 
-			if (ImGui::BeginCombo(id.c_str(), items[(int)value]))
+			const char* curr = getString(items[(int)value]);
+			if (strlen(curr) <= 0)
+				curr = items[(int)value];
+
+			if (ImGui::BeginCombo(id.c_str(), curr))
 			{
 				for (int i = 0; i < count; ++i)
 				{
 					const bool selected = (int)value == i;
-					if (ImGui::Selectable(items[i], selected))
+					const char* str = getString(items[i]);
+					if (strlen(str) <= 0)
+						str = items[i];
+
+					if (ImGui::Selectable(str, selected))
 						value = (T)i;
 				}
 
@@ -98,6 +169,68 @@ namespace MikuMikuWorld
 
 			ImGui::NextColumn();
 		}
-	};
 
+		template <typename T>
+		static void addSelectProperty(const char* label, T& value, const std::vector<std::string>& items, int count)
+		{
+			propertyLabel(label);
+
+			std::string id("##");
+			id.append(label);
+
+			std::string_view curr = getString(items[(int)value]);
+			if (!curr.size())
+				curr = items[(int)value];
+
+			if (ImGui::BeginCombo(id.c_str(), curr.data()))
+			{
+				for (int i = 0; i < count; ++i)
+				{
+					const bool selected = (int)value == i;
+					std::string_view str = getString(items[i]);
+					if (str.empty())
+						str = items[i].data();
+
+					if (ImGui::Selectable(str.data(), selected))
+						value = (T)i;
+				}
+
+				ImGui::EndCombo();
+			}
+
+			ImGui::NextColumn();
+		}
+
+		// we don't want FlickType::None to appear in the selection
+		template <>
+		static void addSelectProperty<FlickType>(const char* label, FlickType& value, const char* const* items, int count)
+		{
+			propertyLabel(label);
+
+			std::string id("##");
+			id.append(label);
+
+			std::string_view curr = getString(items[(int)value]);
+			if (!curr.size())
+				curr = items[(int)value];
+
+			if (ImGui::BeginCombo(id.c_str(), curr.data()))
+			{
+				for (int i = (int)FlickType::Default; i < count; ++i)
+				{
+					const bool selected = (int)value == i;
+					std::string_view str = getString(items[i]);
+					if (str.empty())
+						str = items[i];
+
+					if (ImGui::Selectable(str.data(), selected))
+						value = (FlickType)i;
+				}
+
+				ImGui::EndCombo();
+			}
+
+			ImGui::NextColumn();
+		}
+	};
 }

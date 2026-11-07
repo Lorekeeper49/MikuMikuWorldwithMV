@@ -23,9 +23,6 @@
     <ClCompile Include="ImGui\imgui_widgets.cpp">
       <Filter>Imgui</Filter>
     </ClCompile>
-    <ClCompile Include="File.cpp">
-      <Filter>IO</Filter>
-    </ClCompile>
     <ClCompile Include="Score.cpp">
       <Filter>Score</Filter>
     </ClCompile>
@@ -38,50 +35,20 @@
     <ClCompile Include="Utilities.cpp">
       <Filter>Misc</Filter>
     </ClCompile>
-    <ClCompile Include="Math.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="InputListener.cpp">
-      <Filter>IO</Filter>
-    </ClCompile>
     <ClCompile Include="Note.cpp">
       <Filter>Score\Notes</Filter>
     </ClCompile>
     <ClCompile Include="Tempo.cpp">
       <Filter>Score</Filter>
     </ClCompile>
-    <ClCompile Include="TimelineNotes.cpp">
-      <Filter>Components\ScoreEditor</Filter>
-    </ClCompile>
     <ClCompile Include="ScoreEditor.cpp">
-      <Filter>Components\ScoreEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Editing.cpp">
-      <Filter>Components\ScoreEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="HistoryManager.cpp">
-      <Filter>Components</Filter>
+      <Filter>ScoreEditor</Filter>
     </ClCompile>
     <ClCompile Include="Audio\AudioManager.cpp">
-      <Filter>Components\Audio</Filter>
-    </ClCompile>
-    <ClCompile Include="EditorWindows.cpp">
-      <Filter>Components\ScoreEditor</Filter>
-    </ClCompile>
-    <ClCompile Include="Audio\AudioEvent.cpp">
-      <Filter>Components\Audio</Filter>
+      <Filter>Audio</Filter>
     </ClCompile>
     <ClCompile Include="Stopwatch.cpp">
       <Filter>Misc</Filter>
-    </ClCompile>
-    <ClCompile Include="FileDialog.cpp">
-      <Filter>IO</Filter>
-    </ClCompile>
-    <ClCompile Include="StringOperations.cpp">
-      <Filter>IO</Filter>
-    </ClCompile>
-    <ClCompile Include="SUS.cpp">
-      <Filter>Score\SUS</Filter>
     </ClCompile>
     <ClCompile Include="Rendering\Camera.cpp">
       <Filter>Rendering</Filter>
@@ -92,43 +59,147 @@
     <ClCompile Include="Rendering\Shader.cpp">
       <Filter>Rendering</Filter>
     </ClCompile>
-    <ClCompile Include="Rendering\Sprite.cpp">
-      <Filter>Rendering</Filter>
-    </ClCompile>
-    <ClCompile Include="Rendering\Texture.cpp">
-      <Filter>Rendering</Filter>
-    </ClCompile>
-    <ClCompile Include="Rendering\VertexBuffer.cpp">
-      <Filter>Rendering</Filter>
-    </ClCompile>
-    <ClCompile Include="Rendering\Framebuffer.cpp">
-      <Filter>Rendering</Filter>
-    </ClCompile>
-    <ClCompile Include="Dialogs.cpp" />
     <ClCompile Include="UI.cpp">
       <Filter>UI</Filter>
     </ClCompile>
-    <ClCompile Include="BinaryReader.cpp">
-      <Filter>IO</Filter>
-    </ClCompile>
-    <ClCompile Include="BinaryWriter.cpp">
-      <Filter>IO</Filter>
-    </ClCompile>
-    <ClCompile Include="SUSIO.cpp">
-      <Filter>Score\SUS</Filter>
-    </ClCompile>
     <ClCompile Include="ApplicationConfiguration.cpp" />
-    <ClCompile Include="Audio\stb_vorbis.c">
-      <Filter>Components\Audio</Filter>
-    </ClCompile>
-    <ClCompile Include="PresetManager.cpp">
-      <Filter>Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Preset.cpp">
-      <Filter>Components</Filter>
+    <ClCompile Include="Audio\Sound.cpp">
+      <Filter>Audio</Filter>
     </ClCompile>
     <ClCompile Include="ScoreStats.cpp">
       <Filter>Score</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGuiManager.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Localization.cpp">
+      <Filter>UI\i18n</Filter>
+    </ClCompile>
+    <ClCompile Include="Language.cpp">
+      <Filter>UI\i18n</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGui\imgui_demo.cpp">
+      <Filter>Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="NotesPreset.cpp">
+      <Filter>Presets</Filter>
+    </ClCompile>
+    <ClCompile Include="BinaryReader.cpp">
+      <Filter>IO\File</Filter>
+    </ClCompile>
+    <ClCompile Include="BinaryWriter.cpp">
+      <Filter>IO\File</Filter>
+    </ClCompile>
+    <ClCompile Include="File.cpp">
+      <Filter>IO\File</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\Texture.cpp">
+      <Filter>Rendering\Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\Framebuffer.cpp">
+      <Filter>Rendering\Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="Jacket.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="SubtitleOverlay.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="MusicVideo.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="VideoDecoder.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Subtitles.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Background.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Depends\stb_vorbis\stb_vorbis.c">
+      <Filter>Audio\Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="SusParser.cpp">
+      <Filter>Score\SUS</Filter>
+    </ClCompile>
+    <ClCompile Include="SusExporter.cpp">
+      <Filter>Score\SUS</Filter>
+    </ClCompile>
+    <ClCompile Include="ScoreEditorWindows.cpp">
+      <Filter>ScoreEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="ScoreEditorTimeline.cpp">
+      <Filter>ScoreEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="ScoreContext.cpp">
+      <Filter>ScoreEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="HistoryManager.cpp">
+      <Filter>ScoreEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="JsonIO.cpp">
+      <Filter>IO</Filter>
+    </ClCompile>
+    <ClCompile Include="InputBinding.cpp">
+      <Filter>IO</Filter>
+    </ClCompile>
+    <ClCompile Include="Math.cpp">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="IO.cpp">
+      <Filter>IO</Filter>
+    </ClCompile>
+    <ClCompile Include="AggregateNotesFilter.cpp">
+      <Filter>ScoreEditor\NotesFilters</Filter>
+    </ClCompile>
+    <ClCompile Include="NotesFilter.cpp">
+      <Filter>ScoreEditor\NotesFilters</Filter>
+    </ClCompile>
+    <ClCompile Include="NativeScoreSerializer.cpp">
+      <Filter>Score\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="SonolusSerializer.cpp">
+      <Filter>Score\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="SusSerializer.cpp">
+      <Filter>Score\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="ScoreSerializer.cpp">
+      <Filter>Score\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="PreviewEngine.cpp">
+      <Filter>ScorePreview</Filter>
+    </ClCompile>
+    <ClCompile Include="ScorePreview.cpp">
+      <Filter>ScorePreview</Filter>
+    </ClCompile>
+    <ClCompile Include="PreviewData.cpp">
+      <Filter>ScorePreview</Filter>
+    </ClCompile>
+    <ClCompile Include="ScoreSerializeWindow.cpp">
+      <Filter>Score\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="NoteSkin.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="MinMax.cpp">
+      <Filter>ScorePreview\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Particle.cpp">
+      <Filter>ScorePreview\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugEffectView.cpp">
+      <Filter>ScorePreview\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="EffectView.cpp">
+      <Filter>ScorePreview\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Sonolus.cpp">
+      <Filter>Score\Sonolus</Filter>
+    </ClCompile>
+    <ClCompile Include="Clipboard.cpp">
+      <Filter>IO</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -169,65 +240,29 @@
     <ClInclude Include="Utilities.h">
       <Filter>Misc</Filter>
     </ClInclude>
-    <ClInclude Include="File.h">
-      <Filter>IO</Filter>
-    </ClInclude>
     <ClInclude Include="Score.h">
       <Filter>Score</Filter>
     </ClInclude>
     <ClInclude Include="ResourceManager.h">
       <Filter>IO</Filter>
     </ClInclude>
-    <ClInclude Include="Math.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="IconsFontAwesome5.h" />
     <ClInclude Include="Tempo.h">
       <Filter>Score</Filter>
     </ClInclude>
     <ClInclude Include="Constants.h" />
-    <ClInclude Include="InputListener.h">
-      <Filter>IO</Filter>
-    </ClInclude>
-    <ClInclude Include="Colors.h" />
     <ClInclude Include="ScoreEditor.h">
-      <Filter>Components\ScoreEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="HistoryManager.h">
-      <Filter>Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Audio\miniaudio.h">
-      <Filter>Components\Audio</Filter>
+      <Filter>ScoreEditor</Filter>
     </ClInclude>
     <ClInclude Include="Audio\AudioManager.h">
-      <Filter>Components\Audio</Filter>
-    </ClInclude>
-    <ClInclude Include="TimelineMode.h">
-      <Filter>Components\ScoreEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="Audio\AudioEvent.h">
-      <Filter>Components\Audio</Filter>
+      <Filter>Audio</Filter>
     </ClInclude>
     <ClInclude Include="Stopwatch.h">
       <Filter>Misc</Filter>
-    </ClInclude>
-    <ClInclude Include="FileDialog.h">
-      <Filter>IO</Filter>
-    </ClInclude>
-    <ClInclude Include="ZIndex.h" />
-    <ClInclude Include="StringOperations.h">
-      <Filter>IO</Filter>
-    </ClInclude>
-    <ClInclude Include="ChannelProvider.h">
-      <Filter>Score\SUS</Filter>
     </ClInclude>
     <ClInclude Include="SUS.h">
       <Filter>Score\SUS</Filter>
     </ClInclude>
     <ClInclude Include="Rendering\Camera.h">
-      <Filter>Rendering</Filter>
-    </ClInclude>
-    <ClInclude Include="Rendering\Quad.h">
       <Filter>Rendering</Filter>
     </ClInclude>
     <ClInclude Include="Rendering\Renderer.h">
@@ -236,26 +271,11 @@
     <ClInclude Include="Rendering\Shader.h">
       <Filter>Rendering</Filter>
     </ClInclude>
-    <ClInclude Include="Rendering\Sprite.h">
-      <Filter>Rendering</Filter>
-    </ClInclude>
-    <ClInclude Include="Rendering\Texture.h">
-      <Filter>Rendering</Filter>
-    </ClInclude>
     <ClInclude Include="Rendering\VertexBuffer.h">
-      <Filter>Rendering</Filter>
-    </ClInclude>
-    <ClInclude Include="Rendering\Vertex.h">
-      <Filter>Rendering</Filter>
-    </ClInclude>
-    <ClInclude Include="Rendering\Framebuffer.h">
       <Filter>Rendering</Filter>
     </ClInclude>
     <ClInclude Include="Rendering\AnchorType.h">
       <Filter>Rendering</Filter>
-    </ClInclude>
-    <ClInclude Include="EditorScoreData.h">
-      <Filter>Components\ScoreEditor</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Resources</Filter>
@@ -263,32 +283,173 @@
     <ClInclude Include="UI.h">
       <Filter>UI</Filter>
     </ClInclude>
-    <ClInclude Include="BinaryReader.h">
-      <Filter>IO</Filter>
-    </ClInclude>
-    <ClInclude Include="BinaryWriter.h">
-      <Filter>IO</Filter>
-    </ClInclude>
-    <ClInclude Include="SUSIO.h">
-      <Filter>Score\SUS</Filter>
-    </ClInclude>
     <ClInclude Include="ApplicationConfiguration.h" />
-    <ClInclude Include="PresetManager.h">
-      <Filter>Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Preset.h">
-      <Filter>Components</Filter>
-    </ClInclude>
     <ClInclude Include="ScoreStats.h">
       <Filter>Score</Filter>
+    </ClInclude>
+    <ClInclude Include="Audio\Sound.h">
+      <Filter>Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGuiManager.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Language.h">
+      <Filter>UI\i18n</Filter>
+    </ClInclude>
+    <ClInclude Include="Localization.h">
+      <Filter>UI\i18n</Filter>
+    </ClInclude>
+    <ClInclude Include="DefaultLanguage.h">
+      <Filter>UI\i18n</Filter>
+    </ClInclude>
+    <ClInclude Include="Colors.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="IconsFontAwesome5.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="NotesPreset.h">
+      <Filter>Presets</Filter>
+    </ClInclude>
+    <ClInclude Include="BinaryReader.h">
+      <Filter>IO\File</Filter>
+    </ClInclude>
+    <ClInclude Include="BinaryWriter.h">
+      <Filter>IO\File</Filter>
+    </ClInclude>
+    <ClInclude Include="File.h">
+      <Filter>IO\File</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Texture.h">
+      <Filter>Rendering\Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Sprite.h">
+      <Filter>Rendering\Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Framebuffer.h">
+      <Filter>Rendering\Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Quad.h">
+      <Filter>Rendering\Primitives</Filter>
+    </ClInclude>
+    <ClInclude Include="Jacket.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="SubtitleOverlay.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="MusicVideo.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="VideoDecoder.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Subtitles.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Background.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Audio\miniaudio.h">
+      <Filter>Audio\Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="SusParser.h">
+      <Filter>Score\SUS</Filter>
+    </ClInclude>
+    <ClInclude Include="SusExporter.h">
+      <Filter>Score\SUS</Filter>
+    </ClInclude>
+    <ClInclude Include="ScoreEditorWindows.h">
+      <Filter>ScoreEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="ScoreContext.h">
+      <Filter>ScoreEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="ScoreEditorTimeline.h">
+      <Filter>ScoreEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="HistoryManager.h">
+      <Filter>ScoreEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="JsonIO.h">
+      <Filter>IO</Filter>
+    </ClInclude>
+    <ClInclude Include="InputBinding.h">
+      <Filter>IO</Filter>
+    </ClInclude>
+    <ClInclude Include="Math.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="TimelineMode.h">
+      <Filter>ScoreEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="IO.h">
+      <Filter>IO</Filter>
+    </ClInclude>
+    <ClInclude Include="Audio\Waveform.h">
+      <Filter>Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="AggregateNotesFilter.h">
+      <Filter>ScoreEditor\NotesFilters</Filter>
+    </ClInclude>
+    <ClInclude Include="NotesFilter.h">
+      <Filter>ScoreEditor\NotesFilters</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageCrop.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderDebugStats.h">
+      <Filter>Misc\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="SusSerializer.h">
+      <Filter>Score\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="NativeScoreSerializer.h">
+      <Filter>Score\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="SonolusSerializer.h">
+      <Filter>Score\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="ScoreSerializer.h">
+      <Filter>Score\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="PreviewEngine.h">
+      <Filter>ScorePreview</Filter>
+    </ClInclude>
+    <ClInclude Include="ScorePreview.h">
+      <Filter>ScorePreview</Filter>
+    </ClInclude>
+    <ClInclude Include="PreviewData.h">
+      <Filter>ScorePreview</Filter>
+    </ClInclude>
+    <ClInclude Include="ScoreSerializeWindow.h">
+      <Filter>Score\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="NoteSkin.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Particle.h">
+      <Filter>ScorePreview\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="MinMax.h">
+      <Filter>ScorePreview\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugEffectView.h">
+      <Filter>ScorePreview\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="EffectView.h">
+      <Filter>ScorePreview\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Sonolus.h">
+      <Filter>Score\Sonolus</Filter>
+    </ClInclude>
+    <ClInclude Include="Clipboard.h">
+      <Filter>IO</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Imgui">
       <UniqueIdentifier>{5f869be1-f56e-434b-96dc-24a484a6636e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Components">
-      <UniqueIdentifier>{26295dea-e1bf-464f-ab4c-a34372ae0316}</UniqueIdentifier>
     </Filter>
     <Filter Include="Misc">
       <UniqueIdentifier>{0c4ff5d0-d352-4a81-91ac-37102b327cbd}</UniqueIdentifier>
@@ -302,17 +463,8 @@
     <Filter Include="Score\Notes">
       <UniqueIdentifier>{e98c2efa-9545-4859-8f61-46e311d17416}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Math">
-      <UniqueIdentifier>{66454ca1-1915-4c0b-9b62-d5dd815f024e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Rendering">
       <UniqueIdentifier>{84bd1600-f676-4951-9eac-806c31068b2b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Components\Audio">
-      <UniqueIdentifier>{5c331f6f-7245-4f01-b6f5-b8e331e5d12d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Components\ScoreEditor">
-      <UniqueIdentifier>{9b7e5692-fc35-4f4c-9b06-172b56eed59d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Score\SUS">
       <UniqueIdentifier>{14ac77c3-608e-4655-a23c-8d69317ed7e5}</UniqueIdentifier>
@@ -322,6 +474,51 @@
     </Filter>
     <Filter Include="UI">
       <UniqueIdentifier>{8e009620-e361-4d17-9cbb-0a7244bc35b5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="UI\i18n">
+      <UniqueIdentifier>{9bc8aca5-08f3-4a55-be78-9a7c8f6fc65b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IO\File">
+      <UniqueIdentifier>{0b3ab42a-66f9-477f-84a2-7a2cb442c80c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Rendering\Texture">
+      <UniqueIdentifier>{fa5aded9-8a02-461c-86e9-77f2355cb811}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Rendering\Primitives">
+      <UniqueIdentifier>{bc89c641-d508-4977-8b01-3886f0d25802}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Audio">
+      <UniqueIdentifier>{5c331f6f-7245-4f01-b6f5-b8e331e5d12d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Audio\Lib">
+      <UniqueIdentifier>{85856c44-1a6c-4a5c-ba83-d119dc2aa064}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics">
+      <UniqueIdentifier>{63566ecb-df58-439e-89a0-c59239fb9ca5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Presets">
+      <UniqueIdentifier>{03d3aab7-fc71-443b-8a41-45df76e832fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ScoreEditor">
+      <UniqueIdentifier>{9b7e5692-fc35-4f4c-9b06-172b56eed59d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ScoreEditor\NotesFilters">
+      <UniqueIdentifier>{1c89fb75-1c6f-4c10-96c6-af5f2809f225}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Misc\Debug">
+      <UniqueIdentifier>{6421cc98-39eb-4c5d-9f42-efa9cefbff16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Score\Serialization">
+      <UniqueIdentifier>{299ab9ff-c0b1-4146-abb1-d4eb55442bff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ScorePreview">
+      <UniqueIdentifier>{b2e37fa4-b250-4e59-89d0-131b15a9423e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ScorePreview\Effects">
+      <UniqueIdentifier>{0d3f066b-bb83-429d-9f38-54da9b01145b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Score\Sonolus">
+      <UniqueIdentifier>{21c8a83e-144a-4cc1-bee7-9f67dd4f281b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -333,5 +530,10 @@
     <Image Include="mmw_icon.ico">
       <Filter>Resources</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Rendering\VertexBuffer.inl">
+      <Filter>Rendering</Filter>
+    </None>
   </ItemGroup>
 </Project>

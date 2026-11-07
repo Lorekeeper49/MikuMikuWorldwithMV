@@ -1,38 +1,67 @@
+#include "Utilities.h"
+#include "ImGui/imgui_stdlib.h"
+#include "ImGui/imgui_internal.h"
 #include "UI.h"
+#include "Colors.h"
+#include "ResourceManager.h"
+#include "TimelineMode.h"
 #include <string>
 #include <algorithm>
+
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+
+#include <Windows.h>
+#include "dwmapi.h"
+
+#undef min
+#undef max
 
 namespace MikuMikuWorld
 {
-	const ImVec2 UI::btnNormal{ 30, 30 };
-	const ImVec2 UI::btnSmall{ 22, 22 };
+	const ImVec2 UI::_btnNormal{ 24, 24 };
+	const ImVec2 UI::_btnSmall{ 19, 19 };
+	const ImVec2 UI::_toolbarBtnSize{ 22, 22 };
+	const ImVec2 UI::_toolbarBtnImgSize{ 19, 19 };
 
-	std::vector<AccentColor> UI::accentColors{
-		AccentColor{ "User",			ImVec4(0.10f, 0.10f, 0.10f, 1.00f) },
-		AccentColor{ "Default",			ImVec4(0.38f, 0.37f, 0.82f, 1.00f) },
-		AccentColor{ "MikuMikuWorld",	ImVec4(0.19f, 0.75f, 0.62f, 1.00f) },
-		AccentColor{ "Light Music",		ImVec4(0.30f, 0.31f, 0.86f, 1.00f) },
-		AccentColor{ "Idol", 			ImVec4(0.40f, 0.69f, 0.15f, 1.00f) },
-		AccentColor{ "Street", 			ImVec4(0.76f, 0.05f, 0.32f, 1.00f) },
-		AccentColor{ "Theme Park", 		ImVec4(0.81f, 0.45f, 0.06f, 1.00f) },
-		AccentColor{ "School Refusal",	ImVec4(0.50f, 0.25f, 0.55f, 1.00f) },
-		AccentColor{ "Plain",			ImVec4(0.40f, 0.40f, 0.40f, 1.00f) }
+	ImVec2 UI::btnNormal{ UI::_btnNormal };
+	ImVec2 UI::btnSmall{ UI::_btnSmall };
+	ImVec2 UI::toolbarBtnSize{ UI::_toolbarBtnSize };
+	ImVec2 UI::toolbarBtnImgSize{ UI::_toolbarBtnImgSize };
+	char UI::idStr[256];
+
+	std::vector<ImVec4> UI::accentColors
+	{
+		ImVec4{ 0.10f, 0.10f, 0.10f, 1.00f }, // User
+		ImVec4{ 0.16f, 0.44f, 0.75f, 1.00f }, // Default
+		ImVec4{ 0.30f, 0.31f, 0.86f, 1.00f }, // Light Music
+		ImVec4{ 0.40f, 0.69f, 0.15f, 1.00f }, // Idol
+		ImVec4{ 0.76f, 0.05f, 0.32f, 1.00f }, // Street
+		ImVec4{ 0.81f, 0.45f, 0.06f, 1.00f }, // Theme Park
+		ImVec4{ 0.50f, 0.25f, 0.55f, 1.00f }, // School Refusal
 	};
+
+	const char* UI::labelID(const char* label)
+	{
+		strcpy(idStr, "##");
+		strcpy(idStr + 2, label);
+		return idStr;
+	}
 
 	bool UI::transparentButton(const char* txt, ImVec2 size, bool repeat, bool enabled)
 	{
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !enabled);
-		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1 - (0.5f * !enabled));
+		ImGui::BeginDisabled(!enabled);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
 
-		ImGui::PushButtonRepeat(repeat);
-		bool pressed = ImGui::Button(txt, size);
-		ImGui::PopButtonRepeat();
+		ImGui::PushItemFlag(ImGuiItemFlags_ButtonRepeat, repeat);
+		bool pressed = ImGui::ButtonEx(txt, size);
+		ImGui::PopItemFlag();
 
 		ImGui::PopStyleColor();
-		ImGui::PopStyleVar();
-		ImGui::PopItemFlag();
+		ImGui::EndDisabled();
 
 		return pressed;
 	}
@@ -44,14 +73,41 @@ namespace MikuMikuWorld
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.3f, 0.3f, 0.3f, 0.4f));
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 
-		std::string id{ "##" };
-		id.append(txt);
-
 		ImGui::SetCursorScreenPos(pos);
-		bool pressed = ImGui::Button(id.c_str(), size);
+		bool pressed = ImGui::Button(labelID(txt), size);
 
 		ImGui::PopStyleColor(3);
 		ImGui::PopStyleVar();
+		return pressed;
+	}
+
+	bool UI::coloredButton(const char* txt, ImVec2 pos, ImVec2 size, ImU32 col, bool enabled)
+	{
+		ImVec4 col4 = ImGui::ColorConvertU32ToFloat4(col);
+		ImVec4 colh = generateHighlightColor(col4);
+		ImGui::PushStyleColor(ImGuiCol_Button, col4);
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, colh);
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, colh);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.15f, 0.15f, 0.15f, 1.0));
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha, 1.0f);
+		ImGui::BeginDisabled(!enabled);
+
+		ImGui::SetCursorScreenPos(pos);
+		ImVec2 sz = size;
+		if (sz.x <= 0)
+			sz.x = std::max(ImGui::CalcTextSize(txt).x + 5.0f, 30.0f);
+
+		if (sz.y <= 0)
+			sz.y = ImGui::GetFrameHeightWithSpacing();
+
+		sz += ImGui::GetStyle().FramePadding;
+
+		bool pressed = ImGui::Button(txt, sz);
+
+		ImGui::EndDisabled();
+		ImGui::PopStyleColor(4);
+		ImGui::PopStyleVar(2);
 		return pressed;
 	}
 
@@ -81,21 +137,21 @@ namespace MikuMikuWorld
 	{
 		propertyLabel(label);
 
-		std::string id("##");
-		id.append(label);
-
-		ImGui::InputText(id.c_str(), &val);
+		ImGui::InputText(labelID(label), &val);
 		ImGui::NextColumn();
 	}
 
 	void UI::addIntProperty(const char* label, int& val, int lowerBound, int higherBound)
 	{
-		propertyLabel(label);
-		
-		std::string id("##");
-		id.append(label);
+		addIntProperty(label, val, "%d", lowerBound, higherBound);
+	}
 
-		ImGui::InputInt(id.c_str(), &val, 1, 5);
+	void UI::addIntProperty(const char* label, int& val, const char* format, int lowerBound, int higherBound)
+	{
+		propertyLabel(label);
+
+		int step = 1;
+		ImGui::InputScalar(labelID(label), ImGuiDataType_S32, &val, &step, &step, format);
 		if (lowerBound != higherBound)
 			val = std::clamp(val, lowerBound, higherBound);
 		ImGui::NextColumn();
@@ -104,18 +160,24 @@ namespace MikuMikuWorld
 	void UI::addFloatProperty(const char* label, float& val, const char* format)
 	{
 		propertyLabel(label);
-		
-		std::string id("##");
-		id.append(label);
 
-		ImGui::InputFloat(id.c_str(), &val, 1.0f, 10.f, format);
+		ImGui::InputFloat(labelID(label), &val, 1.0f, 10.f, format);
 		ImGui::NextColumn();
 	}
 
-	void UI::addReadOnlyProperty(const char* label, std::string val)
+	void UI::addNumericStringProperty(const char* label, std::string& val, bool button)
 	{
 		propertyLabel(label);
-		ImGui::Text(val.c_str());
+
+		ImGui::InputText(labelID(label), &val, ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_CharsScientific | ImGuiInputTextFlags_CharsNoBlank);
+		ImGui::NextColumn();
+	}
+
+	void UI::addDragFloatProperty(const char* label, float& val, const char* format)
+	{
+		propertyLabel(label);
+
+		ImGui::DragFloat(labelID(label), &val, 1.0f, 0.0f, 0.0f, format, ImGuiSliderFlags_NoRoundToFormat);
 		ImGui::NextColumn();
 	}
 
@@ -123,10 +185,7 @@ namespace MikuMikuWorld
 	{
 		propertyLabel(label);
 
-		std::string id("##");
-		id.append(label);
-
-		ImGui::SliderInt(id.c_str(), &val, min, max, format, ImGuiSliderFlags_AlwaysClamp);
+		ImGui::SliderInt(labelID(label), &val, min, max, format, ImGuiSliderFlags_AlwaysClamp);
 		ImGui::NextColumn();
 	}
 
@@ -134,22 +193,16 @@ namespace MikuMikuWorld
 	{
 		propertyLabel(label);
 
-		std::string id("##");
-		id.append(label);
-
-		ImGui::SliderFloat(id.c_str(), &val, min, max, format, ImGuiSliderFlags_AlwaysClamp);
+		ImGui::SliderFloat(labelID(label), &val, min, max, format, ImGuiSliderFlags_AlwaysClamp);
 		ImGui::NextColumn();
 	}
 
-	void UI::addPercentSliderProperty(const char* label, float &val)
+	void UI::addPercentSliderProperty(const char* label, float& val)
 	{
 		propertyLabel(label);
 
-		std::string id("##");
-		id.append(label);
-
 		float scaled = val * 100;
-		ImGui::SliderFloat(id.c_str(), &scaled, 0, 100, "%.0f%%", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::SliderFloat(labelID(label), &scaled, 0, 100, "%.0f%%", ImGuiSliderFlags_AlwaysClamp);
 		ImGui::NextColumn();
 
 		val = scaled / 100.0f;
@@ -158,20 +211,19 @@ namespace MikuMikuWorld
 	int UI::addFileProperty(const char* label, std::string& val)
 	{
 		propertyLabel(label);
-		
-		std::string id("##");
-		id.append(label);
 
 		int result = 0;
 
-		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - btnSmall.x - ImGui::GetStyle().ItemSpacing.x);
-		if (ImGui::InputTextWithHint(id.c_str(), "n/a", &val, ImGuiInputTextFlags_EnterReturnsTrue))
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - UI::btnSmall.x - ImGui::GetStyle().ItemSpacing.x);
+		if (ImGui::InputTextWithHint(labelID(label), "n/a", &val, ImGuiInputTextFlags_EnterReturnsTrue))
 			result = 1;
 		ImGui::SameLine();
 
-		if (ImGui::Button("...", btnSmall))
+		ImGui::PushID(label);
+		if (ImGui::Button("...", UI::btnSmall))
 			result = 2;
 
+		ImGui::PopID();
 		ImGui::NextColumn();
 
 		return result;
@@ -181,15 +233,15 @@ namespace MikuMikuWorld
 	{
 		propertyLabel(label);
 
-		std::string id("##");
-		id.append(label);
-
-		std::string idNumerator = id + "_numerator";
-		std::string idDenominator = id + "_denominator";
+		const char* id = labelID(label);
+		std::string idNumerator{ id };
+		std::string idDenominator{ id };
+		idNumerator.append("_numerator");
+		idDenominator.append("_denominator");
 
 		float controlWidth = (ImGui::GetContentRegionAvail().x / 2.0f) - (ImGui::CalcTextSize("/").x);
 		bool edit = false;
-		
+
 		ImGui::SetNextItemWidth(controlWidth);
 		ImGui::InputInt(idNumerator.c_str(), &numerator, 0, 0);
 
@@ -207,14 +259,19 @@ namespace MikuMikuWorld
 		return edit;
 	}
 
+	void UI::addCheckboxProperty(const char* label, bool& val)
+	{
+		propertyLabel(label);
+
+		ImGui::Checkbox(labelID(label), &val);
+		ImGui::NextColumn();
+	}
+
 	void UI::addMultilineString(const char* label, std::string& val)
 	{
 		propertyLabel(label);
 
-		std::string id("##");
-		id.append(label);
-
-		ImGui::InputTextMultiline(id.c_str(), &val, ImVec2(-1, 50));
+		ImGui::InputTextMultiline(labelID(label), &val, ImVec2(-1, 50));
 		ImGui::NextColumn();
 	}
 
@@ -224,19 +281,264 @@ namespace MikuMikuWorld
 		{
 			float txtWidth = ImGui::CalcTextSize(label).x + (ImGui::GetStyle().WindowPadding.x * 2);
 			ImGui::SetNextWindowSize(ImVec2(std::min(txtWidth, 250.0f), -1));
-			ImGui::BeginTooltipEx(0, ImGuiTooltipFlags_OverridePreviousTooltip);
+			ImGui::BeginTooltipEx(ImGuiTooltipFlags_OverridePrevious, ImGuiWindowFlags_NoResize);
 			ImGui::TextWrapped(label);
 			ImGui::EndTooltip();
 		}
 	}
 
-	void UI::setWindowTitle(const std::string& title)
+	bool UI::divisionSelect(const char* label, int& value, const int* items, size_t count)
+	{
+		const char* id = labelID(label);
+		ImGui::PushID(id);
+
+		bool act = false;
+		ImGui::SetNextItemWidth(100);
+		if (ImGui::InputScalar("##custom_input", ImGuiDataType_S32, (void*)(&value),
+			0, 0, IO::concat("%d", getString("division_suffix")).c_str()))
+		{
+			value = std::clamp(value, 4, 1920);
+			act = true;
+		}
+
+		// enable right-click
+		ImGui::OpenPopupOnItemClick("combobox");
+		ImVec2 pos = ImGui::GetItemRectMin();
+		ImVec2 size = ImGui::GetItemRectSize();
+
+		ImGui::SameLine(0, 0);
+		if (ImGui::ArrowButton("##open_combo", ImGuiDir_Down))
+			ImGui::OpenPopup("combobox");
+
+		// enable right-click
+		ImGui::OpenPopupOnItemClick("combobox");
+
+		size.x += ImGui::GetItemRectSize().x;
+		size.y += size.y * 6;
+		pos.y -= size.y;
+		ImGui::SetNextWindowPos(pos);
+		ImGui::SetNextWindowSize(size);
+		if (ImGui::BeginPopup("combobox", ImGuiWindowFlags_NoMove))
+		{
+			for (int i = 0; i < count; ++i)
+			{
+				if (ImGui::Selectable(Utilities::getDivisionString(items[i]).c_str(), value == items[i]))
+				{
+					value = items[i];
+					act = true;
+				}
+			}
+
+			ImGui::EndPopup();
+		}
+
+		ImGui::PopID();
+		return act;
+	}
+
+	bool UI::zoomControl(const char* label, float& value, float min, float max, float width)
+	{
+		ImGui::PushButtonRepeat(true);
+
+		bool act = false;
+		if (UI::transparentButton(ICON_FA_SEARCH_MINUS, UI::btnSmall, true, value > min))
+		{
+			value -= 0.25f;
+			act = true;
+		}
+
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(width);
+
+		act |= ImGui::SliderFloat(labelID(label), &value, min, max, "%.2fx");
+		ImGui::SameLine();
+
+		if (UI::transparentButton(ICON_FA_SEARCH_PLUS, UI::btnSmall, true, value < max))
+		{
+			value += 0.25f;
+			act = true;
+		}
+		ImGui::PopButtonRepeat();
+
+		return act;
+	}
+
+	bool UI::timeSignatureSelect(int& numerator, int& denominator)
+	{
+		propertyLabel(getString("time_signature"));
+
+		float controlWidth = (ImGui::GetContentRegionAvail().x / 2.0f) - (ImGui::CalcTextSize("/").x);
+		bool edit = false;
+
+		ImGui::SetNextItemWidth(controlWidth);
+		if (ImGui::BeginCombo("##ts_num", std::to_string(numerator).c_str()))
+		{
+			for (int i = 1; i <= 32; ++i)
+			{
+				if (ImGui::Selectable(std::to_string(i).c_str()))
+				{
+					edit = numerator != i;
+					numerator = i;
+				}
+			}
+
+			ImGui::EndCombo();
+		}
+
+		ImGui::SameLine(0, 0);
+		ImGui::Text("/");
+		ImGui::SameLine(0, 0);
+		ImGui::SetNextItemWidth(controlWidth);
+
+		if (ImGui::BeginCombo("##ts_denom", std::to_string(denominator).c_str()))
+		{
+			for (int i = 0; i < sizeof(timeSignatureDenominators) / sizeof(int); ++i)
+			{
+				if (ImGui::Selectable(std::to_string(timeSignatureDenominators[i]).c_str()))
+				{
+					edit = denominator != timeSignatureDenominators[i];
+					denominator = timeSignatureDenominators[i];
+				}
+			}
+
+			ImGui::EndCombo();
+		}
+
+		ImGui::NextColumn();
+		return edit;
+	}
+
+	void UI::setWindowTitle(std::string title)
 	{
 		GLFWwindow* window = glfwGetCurrentContext();
 		if (!window)
 			return;
 
-		std::string fullTitle = title + windowTitle;
-		glfwSetWindowTitle(window, fullTitle.c_str());
+		glfwSetWindowTitle(window, IO::formatString("%s - %s", APP_NAME, title.c_str()).c_str());
+	}
+
+	bool UI::isSystemDarkMode()
+	{
+		char buffer[4];
+		DWORD size = static_cast<DWORD>(sizeof(char) * 4);
+
+		auto result = RegGetValueW(
+			HKEY_CURRENT_USER,
+			L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+			L"AppsUseLightTheme",
+			RRF_RT_REG_DWORD,
+			nullptr,
+			buffer,
+			&size
+		);
+
+		if (result != ERROR_SUCCESS)
+			return false; // Default to light mode
+
+		int i = int(buffer[3] << 24 | buffer[2] << 16 | buffer[1] << 8 | buffer[0]);
+		return i == 0;
+	}
+
+	void UI::setDarkMode(bool enabled)
+	{
+		GLFWwindow* window = glfwGetCurrentContext();
+		if (!window)
+			return;
+
+		HWND hwnd = glfwGetWin32Window(window);
+		BOOL isDarkMode = enabled;
+		::DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &isDarkMode, sizeof(isDarkMode));
+	}
+
+	void UI::updateBtnSizesDpiScaling(float scale)
+	{
+		btnNormal = _btnNormal * scale;
+		btnSmall = _btnSmall * scale;
+		toolbarBtnSize = _toolbarBtnSize * scale;
+		toolbarBtnImgSize = _toolbarBtnImgSize * scale;
+	}
+
+	bool UI::toolbarButton(const char* icon, const char* label, const char* shortcut, bool enabled, bool selected)
+	{
+		ImGui::BeginDisabled(!enabled);
+		if (selected)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_TabActive]);
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_TabActive]);
+		}
+
+		bool activated = ImGui::Button(icon, UI::toolbarBtnSize);
+
+		std::string tooltipLabel = label;
+		if (shortcut && strlen(shortcut))
+			tooltipLabel.append(" (").append(shortcut).append(")");
+
+		if (tooltipLabel.size())
+			tooltip(tooltipLabel.c_str());
+
+		if (selected)
+			ImGui::PopStyleColor(2);
+
+		ImGui::EndDisabled();
+		ImGui::SameLine();
+
+		return activated;
+	}
+
+	bool UI::toolbarImageButton(const char* img, int sprIndex, const char* label, const char* shortcut, bool enabled, bool selected)
+	{
+		std::string lblId{};
+		lblId.append("##").append(img).append(label);
+
+		int texIndex = ResourceManager::getTexture(img);
+		if (texIndex == -1)
+		{
+			// fallback to regular toolbar button
+			return toolbarButton(img, label, shortcut, enabled, selected);
+		}
+
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 2, 2 });
+		ImGui::BeginDisabled(!enabled);
+
+		if (selected)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_TabActive]);
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_TabActive]);
+		}
+
+		const Texture& tex = ResourceManager::textures[texIndex];
+		const Sprite& spr = tex.sprites[sprIndex];
+		const ImVec2 uv0{ spr.getX1() / tex.getWidth(), spr.getY1() / tex.getHeight() };
+		const ImVec2 uv1{ spr.getX2() / tex.getWidth(), spr.getY2() / tex.getHeight() };
+
+		bool activated = ImGui::ImageButton(lblId.c_str(), (ImTextureID)(size_t)tex.getID(), UI::toolbarBtnImgSize, uv0, uv1);
+
+		std::string tooltipLabel = label;
+		if (shortcut && strlen(shortcut))
+			tooltipLabel.append(" (").append(shortcut).append(")");
+
+		if (tooltipLabel.size())
+			tooltip(tooltipLabel.c_str());
+
+		if (selected)
+			ImGui::PopStyleColor(2);
+
+		ImGui::EndDisabled();
+		ImGui::PopStyleVar();
+		ImGui::SameLine();
+
+		return activated;
+	}
+
+	bool UI::toolbarImageButton(const char* img, const char* label, const char* shortcut, bool enabled, bool selected)
+	{
+		return toolbarImageButton(img, 0, label, shortcut, enabled, selected);
+	}
+
+	void UI::toolbarSeparator()
+	{
+		ImGui::SameLine();
+		ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+		ImGui::SameLine();
 	}
 }
