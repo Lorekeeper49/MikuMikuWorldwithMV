@@ -8,15 +8,8 @@
 namespace MikuMikuWorld
 {
 	extern int nextSkillID;
-	extern int nextCheerID;
 
 	struct SkillTrigger
-	{
-		int ID;
-		int tick;
-	};
-
-	struct CheerTrigger
 	{
 		int ID;
 		int tick;
@@ -70,7 +63,6 @@ namespace MikuMikuWorld
 		std::map<int, TimeSignature> timeSignatures;
 		std::vector<HiSpeedChange> hiSpeedChanges;
 		std::vector<SkillTrigger> skills;
-		std::vector<CheerTrigger> cheers;
 		Fever fever;
 
 		Score();

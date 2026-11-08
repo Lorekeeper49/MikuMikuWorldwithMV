@@ -232,11 +232,7 @@ namespace MikuMikuWorld
 				ImGui::Text("%d", context.scoreStats.getSkills());
 
 				ImGui::TableNextRow();
-				statsTableRow("cheers", 8);
-				ImGui::Text("%d", context.scoreStats.getCheers());
-
-				ImGui::TableNextRow();
-				statsTableRow("fever_chances", 9);
+				statsTableRow("fever_chances", 8);
 				ImGui::Text("%d", context.scoreStats.getFeverChances());
 
 				ImGui::PopStyleVar();

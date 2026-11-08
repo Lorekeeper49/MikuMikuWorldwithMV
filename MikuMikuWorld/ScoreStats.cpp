@@ -19,7 +19,7 @@ namespace MikuMikuWorld
 	void ScoreStats::resetCounts()
 	{
 		taps = flicks = holds = steps = traces = total = 0;
-		skills = cheers = feverChances = 0;
+		skills = feverChances = 0;
 	}
 
 	void ScoreStats::resetCombo()
@@ -50,7 +50,6 @@ namespace MikuMikuWorld
 		total = score.notes.size();
 
 		skills = score.skills.size();
-		cheers = score.cheers.size();
 		feverChances = (score.fever.startTick >= 0 && score.fever.endTick >= 0) ? 1 : 0;
 
 		calculateCombo(score);

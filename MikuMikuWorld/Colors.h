@@ -12,7 +12,6 @@ namespace MikuMikuWorld
 	const ImU32 timeColor		= ImGui::ColorConvertFloat4ToU32(ImVec4(0.85f, 0.71f, 0.05f, 1.00f));
 	const ImU32 speedColor		= ImGui::ColorConvertFloat4ToU32(ImVec4(0.84f, 0.25f, 0.16f, 1.00f));
 	const ImU32 skillColor		= ImGui::ColorConvertFloat4ToU32(ImVec4(0.20f, 0.58f, 1.00f, 1.00f));
-	const ImU32 cheerColor		= ImGui::ColorConvertFloat4ToU32(ImVec4(0.85f, 0.25f, 0.65f, 1.00f));
 	const ImU32 feverColor		= ImGui::ColorConvertFloat4ToU32(ImVec4(0.90f, 0.54f, 0.28f, 1.00f));
 	const ImU32 selectionColor1 = ImGui::ColorConvertFloat4ToU32(ImVec4(0.40f, 0.40f, 0.40f, 0.45f));
 	const ImU32 selectionColor2 = ImGui::ColorConvertFloat4ToU32(ImVec4(0.42f, 0.46f, 1.00f, 0.50f));

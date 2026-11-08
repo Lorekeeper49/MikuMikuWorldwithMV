@@ -691,17 +691,6 @@ namespace MikuMikuWorld
 				}
 			}
 
-			// Update cheer triggers
-			for (size_t index = 0; index < context.score.cheers.size(); ++index)
-			{
-				if (cheerControl(context.score.cheers.at(index)))
-				{
-					eventEdit.editIndex = index;
-					eventEdit.type = EventType::Cheer;
-					ImGui::OpenPopup("edit_event");
-				}
-			}
-
 			eventEditor(context);
 			updateNotes(context, edit, renderer);
 
@@ -1139,22 +1128,6 @@ namespace MikuMikuWorld
 		Score prev = context.score;
 		context.score.skills.push_back({ nextSkillID++, tick });
 		context.pushHistory("Insert skill trigger", prev, context.score);
-	}
-
-	void ScoreEditorTimeline::insertCheer(ScoreContext& context, int tick)
-	{
-		if (playing)
-			return;
-
-		for (const auto& cheer : context.score.cheers)
-		{
-			if (cheer.tick == tick)
-				return;
-		}
-
-		Score prev = context.score;
-		context.score.cheers.push_back({ nextCheerID++, tick });
-		context.pushHistory("Insert cheer trigger", prev, context.score);
 	}
 
 	void ScoreEditorTimeline::beginInsertFever(ScoreContext& context, int tick)
@@ -2004,16 +1977,6 @@ namespace MikuMikuWorld
 		return eventControl(tick, skillColor, getString("skill"), true, enabled);
 	}
 
-	bool ScoreEditorTimeline::cheerControl(const CheerTrigger& cheer)
-	{
-		return cheerControl(cheer.tick, !playing);
-	}
-
-	bool ScoreEditorTimeline::cheerControl(int tick, bool enabled)
-	{
-		return eventControl(tick, cheerColor, getString("cheer"), true, enabled);
-	}
-
 	bool ScoreEditorTimeline::feverControl(const Fever& fever)
 	{
 		return feverControl(fever.startTick, true, !playing) || feverControl(fever.endTick, false, !playing);
@@ -2183,16 +2146,6 @@ namespace MikuMikuWorld
 					Score prev = context.score;
 					context.score.skills.erase(context.score.skills.begin() + eventEdit.editIndex);
 					context.pushHistory("Remove skill trigger", prev, context.score);
-				}
-			}
-			else if (eventEdit.type == EventType::Cheer)
-			{
-				if (ImGui::Button(getString("remove"), ImVec2(-1, UI::btnSmall.y + 2)))
-				{
-					ImGui::CloseCurrentPopup();
-					Score prev = context.score;
-					context.score.cheers.erase(context.score.cheers.begin() + eventEdit.editIndex);
-					context.pushHistory("Remove cheer trigger", prev, context.score);
 				}
 			}
 			else if (eventEdit.type == EventType::Fever)

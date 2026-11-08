@@ -8,7 +8,6 @@ namespace MikuMikuWorld
 {
 	int nextID = 1;
 	int nextSkillID = 1;
-	int nextCheerID = 1;
 
 	Note::Note(NoteType _type) :
 		type{ _type }, parentID{ -1 }, tick{ 0 }, lane{ 0 }, width{ 3 }, critical { false }, friction{ false }

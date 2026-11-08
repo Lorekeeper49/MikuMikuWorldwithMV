@@ -134,7 +134,6 @@ namespace MikuMikuWorld
 		std::map<int, Note> notes;
 		std::map<int, HoldNote> holds;
 		std::vector<SkillTrigger> skills;
-		std::vector<CheerTrigger> cheers;
 		Fever fever{ -1, -1 };
 
 		for (const auto& note : sus.taps)
@@ -142,10 +141,6 @@ namespace MikuMikuWorld
 			if (note.type == 4)
 			{
 				skills.push_back(SkillTrigger{ nextSkillID++, note.tick });
-			}
-			else if (note.type == 7 && note.lane == 0 && note.width == 1)
-			{
-				cheers.push_back(CheerTrigger{ nextCheerID++, note.tick });
 			}
 			else if (note.lane == 15 && note.width == 1)
 			{
@@ -322,7 +317,6 @@ namespace MikuMikuWorld
 		score.timeSignatures = timeSignatures;
 		score.hiSpeedChanges = hiSpeedChanges;
 		score.skills = skills;
-		score.cheers = cheers;
 		score.fever = fever;
 
 		return score;
@@ -458,9 +452,6 @@ namespace MikuMikuWorld
 
 		for (const auto& skill : score.skills)
 			taps.push_back(SUSNote{ skill.tick, 0, 1, 4 });
-
-		for (const auto& cheer : score.cheers)
-			taps.push_back(SUSNote{ cheer.tick, 0, 1, 7 });
 
 		if (score.fever.startTick != -1)
 			taps.push_back(SUSNote{ score.fever.startTick, 15, 1, 1 });

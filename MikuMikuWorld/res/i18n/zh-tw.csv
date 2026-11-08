@@ -16,7 +16,6 @@ undo, 復原
 redo, 重做
 select_all, 全選
 insert_skill, 挿入技能
-insert_cheer, 挿入喝采
 insert_fever, 挿入FEVER
 view, 顯示
 show_step_outlines, 在中點顯示邊界
@@ -194,7 +193,6 @@ traces, 軌道
 total, 合計
 combo, Combo
 skills, 技能
-cheers, 喝采
 fever_chances, FEVER CHANCE
 goto_measure, 前往小節
 division, 分割
@@ -208,14 +206,12 @@ remove, 移除
 edit_time_signature, 編輯時間戳
 measure, 小節
 skill, 技能
-cheer, 喝采
 increase_note_size, 加寬音符
 decrease_note_size, 減小音符
 hi_speed, 加速
 edit_hi_speed, 編輯加速度
 hi_speed_speed, 加速速度
 edit_skill, 編輯技能
-edit_cheer, 編輯喝采
 edit_fever, 編輯FEVER
 edit_none, 編輯
 edit_event, 編輯事件

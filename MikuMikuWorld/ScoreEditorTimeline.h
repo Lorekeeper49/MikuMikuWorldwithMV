@@ -189,8 +189,6 @@ namespace MikuMikuWorld
 		bool timeSignatureControl(int numerator, int denominator, int tick, bool enabled);
 		bool skillControl(const SkillTrigger& skill);
 		bool skillControl(int tick, bool enabled);
-		bool cheerControl(const CheerTrigger& cheer);
-		bool cheerControl(int tick, bool enabled);
 		bool feverControl(const Fever& fever);
 		bool feverControl(int tick, bool start, bool enabled);
 		bool hiSpeedControl(const HiSpeedChange& hiSpeed);
@@ -282,7 +280,6 @@ namespace MikuMikuWorld
 		float getHeight() const { return size.y; }
 
 		void insertSkill(ScoreContext& context, int tick);
-		void insertCheer(ScoreContext& context, int tick);
 		void beginInsertFever(ScoreContext& context, int tick);
 		void endInsertFever(ScoreContext& context, int tick);
 

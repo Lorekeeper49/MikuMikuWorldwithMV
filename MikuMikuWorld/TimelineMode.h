@@ -51,7 +51,6 @@ namespace MikuMikuWorld
 		TimeSignature,
 		HiSpeed,
 		Skill,
-		Cheer,
 		Fever,
 		EventTypeMax
 	};
@@ -63,7 +62,6 @@ namespace MikuMikuWorld
 		"time_signature",
 		"hi_speed",
 		"skill",
-		"cheer",
 		"fever",
 		"event"
 	};

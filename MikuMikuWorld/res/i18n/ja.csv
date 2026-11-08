@@ -16,7 +16,6 @@ undo, 元に戻す
 redo, やり直す
 select_all, 全て選択
 insert_skill, スキル発動を挿入
-insert_cheer, チア発動を挿入
 insert_fever, FEVERを挿入
 view, 表示
 show_step_outlines, 中継点に枠線を表示
@@ -194,7 +193,6 @@ traces, トレース
 total, 合計
 combo, コンボ
 skills, スキル
-cheers, チア
 fever_chances, FEVER CHANCE
 goto_measure, 小節に移動
 division, 小節の分割
@@ -208,14 +206,12 @@ remove, 削除
 edit_time_signature, 拍子を編集
 measure, 小節
 skill, スキル
-cheer, チア
 increase_note_size, ノーツの幅を広げる
 decrease_note_size, ノーツの幅を狭める
 hi_speed, ハイスピード
 edit_hi_speed, ハイスピードを編集
 hi_speed_speed, ハイスピード速度
 edit_skill, スキル発動を編集
-edit_cheer, チア発動を編集
 edit_fever, FEVER発動を編集
 edit_none, 編集
 edit_event, イベントを編集

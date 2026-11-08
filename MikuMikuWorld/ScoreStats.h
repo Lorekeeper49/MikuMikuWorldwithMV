@@ -8,7 +8,7 @@ namespace MikuMikuWorld
 	{
 	private:
 		int taps, flicks, holds, steps, traces, total, combo;
-		int skills, cheers, feverChances;
+		int skills, feverChances;
 
 		void resetCounts();
 		void resetCombo();
@@ -28,7 +28,6 @@ namespace MikuMikuWorld
 		int getTotal() const { return total; }
 		int getCombo() const { return combo; }
 		int getSkills() const { return skills; }
-		int getCheers() const { return cheers; }
 		int getFeverChances() const { return feverChances; }
 	};
 }

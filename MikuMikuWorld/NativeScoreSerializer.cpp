@@ -148,14 +148,12 @@ namespace MikuMikuWorld
 			score.fever.endTick = reader->readInt32();
 		}
 
+		// Cheer triggers are not supported in this build; skip them to stay compatible with files that have them
 		if (version > 4)
 		{
 			int cheerCount = reader->readInt32();
 			for (int i = 0; i < cheerCount; ++i)
-			{
-				int tick = reader->readInt32();
-				score.cheers.push_back({ nextCheerID++, tick });
-			}
+				reader->readInt32();
 		}
 	}
 
@@ -192,11 +190,8 @@ namespace MikuMikuWorld
 		writer->writeInt32(score.fever.startTick);
 		writer->writeInt32(score.fever.endTick);
 
-		writer->writeInt32(score.cheers.size());
-		for (const auto& cheer : score.cheers)
-		{
-			writer->writeInt32(cheer.tick);
-		}
+		// Empty cheer trigger block, kept so the file layout matches the format version
+		writer->writeInt32(0);
 	}
 
 	void NativeScoreSerializer::serialize(const Score& score, std::string filename)
