@@ -413,11 +413,21 @@ namespace MikuMikuWorld
 			const MusicVideo& musicVideo = context.workingData.musicVideo;
 			if (musicVideo.isVisible())
 			{
-				const float videoScale = std::max(size.x / musicVideo.getDisplayAspect(), size.y);
-				const ImVec2 videoSize{ videoScale * musicVideo.getDisplayAspect(), videoScale };
+				ImVec2 videoSize{};
+				getMusicVideoSize(size.x, size.y, musicVideo.getDisplayAspect(), config.musicVideoZoom, videoSize.x, videoSize.y);
 				const ImVec2 videoPos{ position.x + (size.x - videoSize.x) / 2.0f, position.y + (size.y - videoSize.y) / 2.0f };
 				const ImU32 tint = ImGui::ColorConvertFloat4ToU32({ config.backgroundBrightness, config.backgroundBrightness, config.backgroundBrightness, 1.0f });
+
+				if (config.musicVideoZoom == MusicVideoZoom::Fit)
+					drawList->AddRectFilled(boundaries.Min, boundaries.Max, IM_COL32_BLACK);
+
 				drawList->AddImage((ImTextureID)(size_t)musicVideo.getTexture(), videoPos, videoPos + videoSize, { 0, 0 }, { 1, 1 }, tint);
+
+				if (config.musicVideoStageLines)
+				{
+					const float lineCount = getStageLineCount(videoSize.x);
+					drawList->AddImage((ImTextureID)(size_t)getStageLinesTexture(), videoPos, videoPos + videoSize, { 0, 0 }, { lineCount, 1 });
+				}
 			}
 			else if (config.drawBackground && background.isLoaded())
 			{

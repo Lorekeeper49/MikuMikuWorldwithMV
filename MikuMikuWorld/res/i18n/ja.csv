@@ -181,6 +181,11 @@ music_offset, オフセット
 music_video_file, MVファイル
 music_video_offset, MVオフセット
 music_video_load_failed, この動画を開けませんでした。
+music_video, MV
+music_video_zoom, ズーム
+music_video_zoom_fill, 画面に合わせて拡大
+music_video_zoom_fit, 全体を表示
+music_video_stage_lines, ステージライン
 volume_master, 全体音量
 volume_bgm, BGM音量
 volume_se, SE音量

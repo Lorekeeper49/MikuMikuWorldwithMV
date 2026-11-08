@@ -181,6 +181,11 @@ music_offset, 音訊延遲
 music_video_file, MV 檔案
 music_video_offset, MV 延遲
 music_video_load_failed, 無法開啟此影片。
+music_video, MV
+music_video_zoom, 縮放
+music_video_zoom_fill, 填滿畫面
+music_video_zoom_fit, 完整顯示
+music_video_stage_lines, 舞台線條
 volume_master, 主音量
 volume_bgm, BGM 音量
 volume_se, SE 音量

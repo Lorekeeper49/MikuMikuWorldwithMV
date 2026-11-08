@@ -3,6 +3,7 @@
 #include "Math.h"
 #include "InputBinding.h"
 #include "Subtitles.h"
+#include "MusicVideo.h"
 
 namespace MikuMikuWorld
 {
@@ -121,6 +122,8 @@ namespace MikuMikuWorld
 		int notesSkin;
 		bool pvDrawToolbar;
 		SubtitlePosition subtitlePosition;
+		MusicVideoZoom musicVideoZoom;
+		bool musicVideoStageLines;
 
 		InputConfiguration input;
 

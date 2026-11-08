@@ -105,6 +105,14 @@ namespace MikuMikuWorld
 				0, static_cast<int>(SubtitlePosition::SubtitlePositionMax) - 1));
 		}
 
+		if (jsonIO::keyExists(config, "music_video"))
+		{
+			musicVideoZoom = static_cast<MusicVideoZoom>(std::clamp(
+				jsonIO::tryGetValue<int>(config["music_video"], "zoom", static_cast<int>(MusicVideoZoom::Fill)),
+				0, static_cast<int>(MusicVideoZoom::MusicVideoZoomMax) - 1));
+			musicVideoStageLines = jsonIO::tryGetValue<bool>(config["music_video"], "stage_lines", false);
+		}
+
 		if (jsonIO::keyExists(config, "theme"))
 		{
 			accentColor = jsonIO::tryGetValue<int>(config["theme"], "accent_color", 1);
@@ -219,6 +227,11 @@ namespace MikuMikuWorld
 			{"position", static_cast<int>(subtitlePosition)}
 		};
 
+		config["music_video"] = {
+			{"zoom", static_cast<int>(musicVideoZoom)},
+			{"stage_lines", musicVideoStageLines}
+		};
+
 		config["theme"] = {
 			{"accent_color", accentColor},
 			{"user_color",
@@ -317,6 +330,8 @@ namespace MikuMikuWorld
 		notesSkin = 0;
 		pvDrawToolbar = true;
 		subtitlePosition = SubtitlePosition::Right;
+		musicVideoZoom = MusicVideoZoom::Fill;
+		musicVideoStageLines = false;
 
 		autoSaveEnabled = true;
 		autoSaveInterval = 5;

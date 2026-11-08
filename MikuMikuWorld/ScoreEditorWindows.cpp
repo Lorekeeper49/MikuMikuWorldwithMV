@@ -1051,6 +1051,14 @@ namespace MikuMikuWorld
 						UI::endPropertyColumns();
 					}
 
+					if (ImGui::CollapsingHeader(getString("music_video"), ImGuiTreeNodeFlags_DefaultOpen))
+					{
+						UI::beginPropertyColumns();
+						UI::addSelectProperty(getString("music_video_zoom"), config.musicVideoZoom, musicVideoZoomModes, (int)MusicVideoZoom::MusicVideoZoomMax);
+						UI::addCheckboxProperty(getString("music_video_stage_lines"), config.musicVideoStageLines);
+						UI::endPropertyColumns();
+					}
+
 					ImGui::EndChild();
 					ImGui::EndTabItem();
 				}

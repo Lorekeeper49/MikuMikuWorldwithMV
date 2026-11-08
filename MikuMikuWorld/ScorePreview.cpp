@@ -281,10 +281,11 @@ namespace MikuMikuWorld
 	{
 	}
 
-	static void drawMusicVideo(Renderer* renderer, const MusicVideo& video, float screenWidth, float screenHeight)
+	// screenWidth/screenHeight are in stage units; pixelsPerUnit converts them to on-screen pixels
+	static void drawMusicVideo(Renderer* renderer, const MusicVideo& video, float screenWidth, float screenHeight, float pixelsPerUnit)
 	{
 		float videoWidth{}, videoHeight{};
-		Utils::fillRect(screenWidth, screenHeight, video.getDisplayAspect(), videoWidth, videoHeight);
+		getMusicVideoSize(screenWidth, screenHeight, video.getDisplayAspect(), config.musicVideoZoom, videoWidth, videoHeight);
 
 		const float quadWidth = videoWidth / (Engine::STAGE_TARGET_WIDTH * Engine::STAGE_WIDTH_RATIO);
 		const float quadHeight = videoHeight / (Engine::STAGE_TARGET_HEIGHT * Engine::STAGE_HEIGHT_RATIO);
@@ -293,8 +294,17 @@ namespace MikuMikuWorld
 		const float top = centerY - quadHeight / 2;
 
 		const float brightness = config.pvBackgroundBrightness;
-		renderer->pushQuad(Engine::quadvPos(left, left + quadWidth, top, top + quadHeight), Engine::quadvPos(0, 1, 0, 1),
+		const auto videoPos = Engine::quadvPos(left, left + quadWidth, top, top + quadHeight);
+		renderer->pushQuad(videoPos, Engine::quadvPos(0, 1, 0, 1),
 			DirectX::XMMatrixIdentity(), DirectX::XMFLOAT4(brightness, brightness, brightness, 1), static_cast<int>(video.getTexture()), -10);
+
+		// Fit mode needs no explicit bars: the preview framebuffer is cleared to opaque black
+		if (config.musicVideoStageLines)
+		{
+			const float lineCount = getStageLineCount(videoWidth * pixelsPerUnit);
+			renderer->pushQuad(videoPos, Engine::quadvPos(0, lineCount, 0, 1),
+				DirectX::XMMatrixIdentity(), DirectX::XMFLOAT4(1, 1, 1, 1), static_cast<int>(getStageLinesTexture()), -9);
+		}
 	}
 
 	void ScorePreviewWindow::update(ScoreContext& context, Renderer* renderer)
@@ -367,7 +377,7 @@ namespace MikuMikuWorld
 		renderer->beginBatch();
 		if (context.workingData.musicVideo.isVisible())
 		{
-			drawMusicVideo(renderer, context.workingData.musicVideo, width, height);
+			drawMusicVideo(renderer, context.workingData.musicVideo, width, height, size.x / width);
 		}
 		else if (config.drawBackground)
 		{

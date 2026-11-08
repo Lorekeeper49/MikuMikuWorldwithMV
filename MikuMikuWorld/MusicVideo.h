@@ -5,6 +5,28 @@
 
 namespace MikuMikuWorld
 {
+	enum class MusicVideoZoom : uint8_t
+	{
+		Fill,
+		Fit,
+		MusicVideoZoomMax
+	};
+
+	constexpr const char* musicVideoZoomModes[]
+	{
+		"music_video_zoom_fill",
+		"music_video_zoom_fit"
+	};
+
+	// Size of a video with the given aspect ratio once scaled into the target area.
+	// Fill covers the whole area and crops the overflow; Fit shows the whole video and leaves bars.
+	void getMusicVideoSize(float targetWidth, float targetHeight, float videoAspect, MusicVideoZoom zoom, float& width, float& height);
+
+	// In game the MV is overlaid with fine, soft vertical stripes so it looks like a concert screen.
+	// The texture is one stripe; tile it horizontally getStageLineCount() times across the video.
+	unsigned int getStageLinesTexture();
+	float getStageLineCount(float videoWidthPixels);
+
 	class MusicVideo
 	{
 	public:
