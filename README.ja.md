@@ -3,6 +3,8 @@
 # MikuMikuWorld
 プロセカ用の譜面エディタ・譜面ビューアー。
 
+このフォークは、元の MikuMikuWorld が失われる前に crash5band によってコードを取得していることに注意してください。
+
 ## 必要な環境：
 - 64bitのWindows 10以上¹
 - [Microsoft Visual C++再頒布可能](https://aka.ms/vs/17/release/vc_redist.x64.exe)
