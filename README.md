@@ -3,6 +3,8 @@
 # MikuMikuWorld
 A chart editor and viewer for the mobile rhythm game Project Sekai Colorful Stage feat. Hatsune Miku.
 
+Please note, this fork takes code from the original MikuMikuWorld by crash5band before it was lost.
+
 ## Features:
 - Import and export Sliding Universal Score (\*.sus) files.
 - BPM, time signature, and hi-speed adjustment.
