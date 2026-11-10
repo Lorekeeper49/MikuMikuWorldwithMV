@@ -27,7 +27,7 @@ Please note, this fork takes code from the original MikuMikuWorld by crash5band 
 *Earlier versions of Windows may work but not tested.
 
 ## Download:
-The latest version can be downloaded [here](https://github.com/crash5band/MikuMikuWorld/releases/latest/download/MikuMikuWorld.zip).
+The latest version can be downloaded [here](https://github.com/Lorekeeper49/MikuMikuWorldwithMV/releases/latest/download/windows-64x.zip).
 
 ## Screenshot:
 ![MikuMikuWorld](https://github.com/crash5band/MikuMikuWorld/assets/44091782/ba9dbcdf-fa77-4b44-b5e3-2858a283fce0)
